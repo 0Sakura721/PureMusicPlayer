@@ -20,6 +20,7 @@
     <!-- 曲库排序 -->
     <string name="sort">排序</string>
     <string name="sort_by">排序方式</string>
+    <string name="shuffle_button">随机</string>
     <string name="sort_title">标题</string>
     <string name="sort_artist">艺术家</string>
     <string name="sort_album">专辑</string>
