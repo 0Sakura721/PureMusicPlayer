@@ -171,7 +171,7 @@ class SettingsFragment : Fragment() {
     private fun applyThemeMode() {
         val mode = when (Prefs.themeMode) {
             1 -> AppCompatDelegate.MODE_NIGHT_NO
-            2 -> AppCompatDelegate.MODE_NIGHT_YES
+            2, 3 -> AppCompatDelegate.MODE_NIGHT_YES   // 深色与纯黑(AMOLED)均走夜间模式
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
         AppCompatDelegate.setDefaultNightMode(mode)

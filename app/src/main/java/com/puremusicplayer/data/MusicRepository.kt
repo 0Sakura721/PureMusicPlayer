@@ -119,8 +119,8 @@ object MusicRepository {
     private fun buildSongFromDoc(context: Context, file: DocumentFile): Song? {
         val name = file.name ?: return null
         val baseName = name.substringBeforeLast('.')
+        val retr = MediaMetadataRetriever()
         return try {
-            val retr = MediaMetadataRetriever()
             retr.setDataSource(context, file.uri)
             val title = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                 ?: baseName.ifEmpty { name }
@@ -131,7 +131,6 @@ object MusicRepository {
             val durStr = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val duration = durStr?.toLongOrNull() ?: 0L
             val pic = retr.embeddedPicture
-            retr.release()
             val albumArt = if (pic != null) saveArtToCache(context, file.uri, pic) else null
             Song(
                 id = 0,
@@ -147,6 +146,8 @@ object MusicRepository {
             )
         } catch (_: Exception) {
             null
+        } finally {
+            try { retr.release() } catch (_: Exception) {}
         }
     }
 

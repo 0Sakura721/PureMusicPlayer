@@ -347,6 +347,7 @@ class NowPlayingFragment : Fragment() {
         PlayerManager.playMode = if (PlayerManager.playMode == PlayMode.SHUFFLE)
             PlayMode.REPEAT_ALL else PlayMode.SHUFFLE
         Prefs.playModeOrdinal = PlayerManager.playMode.ordinal
+        PlayerControls.setMode(requireContext(), PlayerManager.playMode)
         updateModeIcons()
     }
 
@@ -358,6 +359,7 @@ class NowPlayingFragment : Fragment() {
             PlayMode.SHUFFLE -> PlayMode.REPEAT_ALL
         }
         Prefs.playModeOrdinal = PlayerManager.playMode.ordinal
+        PlayerControls.setMode(requireContext(), PlayerManager.playMode)
         updateModeIcons()
     }
 

@@ -110,17 +110,33 @@ class MainActivity : AppCompatActivity() {
                 if (playing) R.drawable.ic_pause else R.drawable.ic_play
             )
         }
+
+        // 进度条：按 progress/duration 百分比更新
+        PlayerManager.progress.observe(this) { pos ->
+            val dur = PlayerManager.duration.value ?: 0
+            if (dur > 0) {
+                mini.miniProgress.progress = ((pos.toLong() * 100 / dur).toInt()).coerceIn(0, 100)
+            } else {
+                mini.miniProgress.progress = 0
+            }
+        }
     }
 
-    /** 迷你播放器收藏爱心：已收藏用品牌色实心，否则中性灰描边 */
+    /** 迷你播放器收藏爱心：已收藏用品牌色实心，否则用主题色描边 */
     private fun updateMiniFav(fav: Boolean) {
         binding.miniPlayer.miniFav.setImageResource(
             if (fav) R.drawable.ic_heart else R.drawable.ic_heart_outline
         )
-        binding.miniPlayer.miniFav.setColorFilter(
-            if (fav) ContextCompat.getColor(this, R.color.brand_primary)
-            else ContextCompat.getColor(this, R.color.text_secondary_light)
-        )
+        if (fav) {
+            binding.miniPlayer.miniFav.setColorFilter(
+                ContextCompat.getColor(this, R.color.brand_primary)
+            )
+        } else {
+            // 跟随主题：解析 colorOnSurface，保证浅色/深色/AMOLED 下均可见
+            val tv = android.util.TypedValue()
+            theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, tv, true)
+            binding.miniPlayer.miniFav.setColorFilter(tv.data)
+        }
     }
 
     /** 供 LibraryFragment 在选曲后跳转到“正在播放” */

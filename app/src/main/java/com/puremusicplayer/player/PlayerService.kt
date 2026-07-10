@@ -273,6 +273,30 @@ class PlayerService : android.app.Service() {
                 PlayerManager.isPlaying.value = true
                 updatePlaybackState()
             }
+            PlayMode.ORDER -> {
+                // 顺序播放：播完最后一首后停止，不循环
+                val last = PlayerManager.currentIndex >= PlayerManager.playlist.size - 1
+                if (last) {
+                    if (sleepFinishTrack) {
+                        sleepFinishTrack = false
+                        cancelSleepTimer()
+                        PlayerManager.sleepRemaining.value = 0
+                    }
+                    PlayerManager.isPlaying.value = false
+                    updatePlaybackState()
+                    updateNotification()
+                } else {
+                    if (sleepFinishTrack) {
+                        sleepFinishTrack = false
+                        cancelSleepTimer()
+                        PlayerManager.sleepRemaining.value = 0
+                        pause()
+                    } else {
+                        resumePosition = 0
+                        playAt(step(true), true)
+                    }
+                }
+            }
             else -> {
                 // 「播完当前歌曲后停止」：自然结束后暂停
                 if (sleepFinishTrack) {
