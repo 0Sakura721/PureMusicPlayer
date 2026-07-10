@@ -82,6 +82,7 @@ class SettingsFragment : Fragment() {
         binding.switchVisualizer.isChecked = Prefs.visualizerEnabled
         binding.switchLyrics.isChecked = Prefs.lyricsAnimEnabled
         binding.switchTheme.isChecked = Prefs.dynamicThemeEnabled
+        binding.switchUnplug.isChecked = Prefs.pauseOnUnplug
 
         binding.switchVisualizer.setOnCheckedChangeListener { _, v ->
             Prefs.visualizerEnabled = v
@@ -89,6 +90,7 @@ class SettingsFragment : Fragment() {
         }
         binding.switchLyrics.setOnCheckedChangeListener { _, v -> Prefs.lyricsAnimEnabled = v }
         binding.switchTheme.setOnCheckedChangeListener { _, v -> Prefs.dynamicThemeEnabled = v }
+        binding.switchUnplug.setOnCheckedChangeListener { _, v -> Prefs.pauseOnUnplug = v }
 
         // 外观：主题模式 / 个性强调色
         binding.rowTheme.setOnClickListener { showThemeDialog() }

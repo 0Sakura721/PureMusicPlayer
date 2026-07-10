@@ -33,4 +33,10 @@ data class Song(
     /** 实际可播放/读取的内容 Uri：优先用直接 Uri，否则按 MediaStore id 拼接 */
     fun contentUri(): Uri = uri
         ?: Uri.parse("${MediaStore.Audio.Media.EXTERNAL_CONTENT_URI}/$id")
+
+    /**
+     * 收藏用的稳定主键：跨扫描保持一致。
+     * 目录模式下用文档 Uri（id 为 0），MediaStore 模式下用内容 id。
+     */
+    fun favKey(): String = if (uri != null) "uri:$uri" else "ms:$id"
 }

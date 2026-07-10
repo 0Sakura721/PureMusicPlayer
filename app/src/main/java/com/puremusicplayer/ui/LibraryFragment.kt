@@ -31,6 +31,7 @@ class LibraryFragment : Fragment() {
     private var allSongs = emptyList<Song>()
     private var albums = emptyList<MusicGroup>()
     private var artists = emptyList<MusicGroup>()
+    private var favoritesList = emptyList<Song>()
 
     private var query = ""
     private var currentTab = 0
@@ -58,6 +59,7 @@ class LibraryFragment : Fragment() {
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_songs))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_albums))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_artists))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_favorites))
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 currentTab = tab?.position ?: 0
@@ -68,6 +70,12 @@ class LibraryFragment : Fragment() {
         })
 
         setupSearch()
+
+        // 收藏集合变化时刷新（迷你栏/播放页也可能修改收藏）
+        PlayerManager.favorites.observe(viewLifecycleOwner) { set ->
+            favoritesList = allSongs.filter { set.contains(it.favKey()) }
+            if (currentTab == 3) applyView()
+        }
 
         if (Permissions.hasAudioPermission(requireContext())) loadLibrary()
         else requestPermission.launch(Permissions.audioPermissionName())
@@ -110,12 +118,14 @@ class LibraryFragment : Fragment() {
     private fun loadLibrary() {
         lastLoadedTreeUri = Prefs.musicTreeUri
         val treeUri = Prefs.musicTreeUri?.let { Uri.parse(it) }
+        PlayerManager.syncFavorites()
         try {
             allSongs = MusicRepository.loadSongs(requireContext(), treeUri)
         } catch (e: Exception) {
             // 扫描失败（如 Android 16 上 MediaStore 行为差异）时安全降级为空列表，而非崩溃
             allSongs = emptyList()
         }
+        favoritesList = allSongs.filter { PlayerManager.favorites.value?.contains(it.favKey()) == true }
         PlayerManager.playlist.clear()
         PlayerManager.playlist.addAll(allSongs)
         PlayerManager.playMode = PlayMode.values().getOrElse(Prefs.playModeOrdinal) { PlayMode.REPEAT_ALL }
@@ -143,11 +153,22 @@ class LibraryFragment : Fragment() {
         val filteredSongs = if (q.isEmpty()) allSongs else allSongs.filter { matchesSong(it, q) }
         val filteredAlbums = if (q.isEmpty()) albums else albums.filter { it.title.lowercase().contains(q) }
         val filteredArtists = if (q.isEmpty()) artists else artists.filter { it.title.lowercase().contains(q) }
+        val filteredFavs = if (q.isEmpty()) favoritesList else favoritesList.filter { matchesSong(it, q) }
 
         val (adapter, listEmpty) = when (currentTab) {
-            0 -> SongAdapter(filteredSongs) { playFrom(it, filteredSongs) } to filteredSongs.isEmpty()
+            0 -> SongAdapter(filteredSongs,
+                onFavClick = { pos ->
+                    filteredSongs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
+                    binding.recyclerView.adapter?.notifyItemChanged(pos)
+                }) { playFrom(it, filteredSongs) } to filteredSongs.isEmpty()
             1 -> GroupAdapter(filteredAlbums) { playGroup(it) } to filteredAlbums.isEmpty()
             2 -> GroupAdapter(filteredArtists) { playGroup(it) } to filteredArtists.isEmpty()
+            3 -> SongAdapter(filteredFavs,
+                onFavClick = { pos ->
+                    filteredFavs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
+                    favoritesList = allSongs.filter { PlayerManager.favorites.value?.contains(it.favKey()) == true }
+                    applyView()
+                }) { playFrom(it, filteredFavs) } to filteredFavs.isEmpty()
             else -> null to true
         }
         binding.recyclerView.adapter = adapter
@@ -156,6 +177,7 @@ class LibraryFragment : Fragment() {
         if (listEmpty) {
             binding.tvEmpty.text = when {
                 q.isNotEmpty() -> getString(R.string.search_empty)
+                currentTab == 3 -> getString(R.string.empty_favorites)
                 Prefs.musicTreeUri != null -> getString(R.string.dir_empty)
                 else -> getString(R.string.empty_library)
             }

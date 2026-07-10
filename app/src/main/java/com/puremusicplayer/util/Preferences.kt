@@ -18,6 +18,9 @@ object Prefs {
     private const val KEY_THEME_MODE = "theme_mode"       // 0 跟随系统 / 1 浅色 / 2 深色
     private const val KEY_VIS_STYLE = "vis_style"         // 0 条形 / 1 圆形 / 2 波形
     private const val KEY_ACCENT = "accent_color"         // DIY 强调色；-1 表示使用默认
+    private const val KEY_FAVORITES = "favorites"          // 收藏歌曲主键集合（Set<String>）
+    private const val KEY_PLAYBACK_SPEED = "playback_speed" // 倍速：1.0 为正常
+    private const val KEY_PAUSE_ON_UNPLUG = "pause_on_unplug" // 耳机/蓝牙拔出自动暂停
 
     private lateinit var sp: SharedPreferences
 
@@ -66,4 +69,33 @@ object Prefs {
     var accentColor: Int
         get() = sp.getInt(KEY_ACCENT, -1)
         set(v) = sp.edit().putInt(KEY_ACCENT, v).apply()
+
+    /** 收藏歌曲的主键集合（Song.favKey）；返回可变副本，写回请用 favorites = set */
+    var favorites: MutableSet<String>
+        get() = (sp.getStringSet(KEY_FAVORITES, emptySet()) ?: emptySet()).toMutableSet()
+        set(v) = sp.edit().putStringSet(KEY_FAVORITES, v.toSet()).apply()
+
+    fun isFavorite(key: String): Boolean = favorites.contains(key)
+
+    /** 切换收藏状态，返回切换后的“是否已收藏” */
+    fun toggleFavorite(key: String): Boolean {
+        val set = favorites
+        val nowFav = if (set.contains(key)) {
+            set.remove(key); false
+        } else {
+            set.add(key); true
+        }
+        favorites = set
+        return nowFav
+    }
+
+    /** 倍速播放：1.0 为正常速度，范围 0.5~2.0 */
+    var playbackSpeed: Float
+        get() = sp.getFloat(KEY_PLAYBACK_SPEED, 1.0f).coerceIn(0.5f, 2.0f)
+        set(v) = sp.edit().putFloat(KEY_PLAYBACK_SPEED, v.coerceIn(0.5f, 2.0f)).apply()
+
+    /** 耳机/蓝牙拔出时自动暂停（默认开启） */
+    var pauseOnUnplug: Boolean
+        get() = sp.getBoolean(KEY_PAUSE_ON_UNPLUG, true)
+        set(v) = sp.edit().putBoolean(KEY_PAUSE_ON_UNPLUG, v).apply()
 }

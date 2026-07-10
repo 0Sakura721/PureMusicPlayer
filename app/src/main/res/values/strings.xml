@@ -10,6 +10,7 @@
     <string name="tab_songs">歌曲</string>
     <string name="tab_albums">专辑</string>
     <string name="tab_artists">艺术家</string>
+    <string name="tab_favorites">收藏</string>
 
     <!-- 搜索 -->
     <string name="search_hint">搜索歌曲、专辑或艺术家</string>
@@ -39,10 +40,14 @@
     <string name="action_lyrics">歌词</string>
     <string name="action_visualizer">可视化</string>
     <string name="action_queue">播放队列</string>
+    <string name="action_favorite">收藏</string>
+    <string name="action_sleep">睡眠定时器</string>
+    <string name="speed_1x">1.0×</string>
     <string name="queue_empty">队列为空</string>
 
     <!-- 状态/空态 -->
     <string name="empty_library">没有找到本地音乐\n请确保已授权读取音频，或把音乐放到设备存储中</string>
+    <string name="empty_favorites">还没有收藏的歌曲\n在播放页或列表中点击 ♥ 即可收藏</string>
     <string name="permission_rationale">PureMusic 需要读取音频权限才能扫描你设备上的本地音乐。</string>
     <string name="grant_permission">授权</string>
     <string name="no_lyrics">暂无歌词\n把同名 .lrc 放在歌曲同目录，或读取 FLAC 内嵌歌词即可显示</string>
@@ -59,6 +64,21 @@
     <string name="settings_dynamic_theme_summary">根据专辑封面自动取色</string>
     <string name="settings_about">关于</string>
     <string name="settings_about_summary">轻量本地音乐播放器</string>
+
+    <!-- 设置 · 耳机拔出暂停 -->
+    <string name="settings_pause_unplug">耳机拔出时暂停</string>
+    <string name="settings_pause_unplug_summary">断开有线耳机或蓝牙音频后自动暂停</string>
+
+    <!-- 睡眠定时器 -->
+    <string name="sleep_timer">睡眠定时器</string>
+    <string name="sleep_15">15 分钟</string>
+    <string name="sleep_30">30 分钟</string>
+    <string name="sleep_45">45 分钟</string>
+    <string name="sleep_60">60 分钟</string>
+    <string name="sleep_end_track">播完当前歌曲</string>
+    <string name="sleep_cancel">取消定时器</string>
+    <string name="sleep_status">睡眠 %s</string>
+    <string name="sleep_status_end_track">睡眠 · 播完本曲</string>
 
     <!-- 设置 · 外观 -->
     <string name="section_appearance">外观</string>

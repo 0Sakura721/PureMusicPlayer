@@ -17,6 +17,7 @@ import coil.Coil
 import coil.load
 import coil.request.ImageRequest
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.puremusicplayer.data.AudioFileInfo
 import com.puremusicplayer.data.Song
 import com.puremusicplayer.databinding.FragmentNowPlayingBinding
@@ -40,6 +41,11 @@ class NowPlayingFragment : Fragment() {
     private var accentColor = Color.parseColor("#6C5CE7")
     private val inactiveTint = Color.parseColor("#777788")
     private var queueSheet: QueueBottomSheet? = null
+
+    companion object {
+        private val SPEEDS = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+        private val SPEED_LABELS = arrayOf("0.5×", "0.75×", "1.0×", "1.25×", "1.5×", "2.0×")
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -83,6 +89,8 @@ class NowPlayingFragment : Fragment() {
 
     private fun applySettings() {
         lyricsPage.lyricsView.setAnimate(Prefs.lyricsAnimEnabled)
+        cover.btnSpeed.text = speedLabel(Prefs.playbackSpeed)
+        updateSleepView(PlayerManager.sleepRemaining.value ?: 0)
         if (Prefs.visualizerEnabled) {
             cover.visualizerView.visibility = View.VISIBLE
             cover.visualizerView.setStyle(Prefs.visualizerStyle)
@@ -101,6 +109,9 @@ class NowPlayingFragment : Fragment() {
         cover.btnPrev.setOnClickListener { PlayerControls.prev(requireContext()) }
         cover.btnShuffle.setOnClickListener { cycleShuffle() }
         cover.btnRepeat.setOnClickListener { cycleRepeat() }
+        cover.btnFav.setOnClickListener { toggleFav() }
+        cover.btnSleep.setOnClickListener { showSleepDialog() }
+        cover.btnSpeed.setOnClickListener { cycleSpeed() }
 
         cover.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -127,6 +138,7 @@ class NowPlayingFragment : Fragment() {
             else if (Prefs.dynamicThemeEnabled) applyDynamicTheme(song.albumArtUri)
             else setAccent(accentColor)
             updateModeIcons()
+            updateFavIcon()
             // 队列弹层打开时同步高亮当前曲目
             if (queueSheet?.isAdded == true) queueSheet?.refresh()
         })
@@ -157,6 +169,12 @@ class NowPlayingFragment : Fragment() {
             lyricsPage.tvNoLyrics.visibility = if (has) View.GONE else View.VISIBLE
             lyricsPage.lyricsView.visibility = if (has) View.VISIBLE else View.GONE
         }
+
+        // 收藏集合变化（迷你栏/列表也可能修改）时刷新当前曲爱心
+        PlayerManager.favorites.observe(viewLifecycleOwner) { updateFavIcon() }
+
+        // 睡眠定时器倒计时
+        PlayerManager.sleepRemaining.observe(viewLifecycleOwner) { updateSleepView(it) }
     }
 
     // ---------- 文件信息（格式 / 位深 / 采样率） ----------
@@ -212,6 +230,86 @@ class NowPlayingFragment : Fragment() {
         cover.seekBar.thumbTintList = csl
         cover.btnPlay.setColorFilter(color)
         updateModeIcons()
+    }
+
+    // ---------- 收藏 ----------
+    private fun toggleFav() {
+        val song = PlayerManager.current() ?: return
+        PlayerManager.toggleFav(song.favKey())
+        updateFavIcon()
+    }
+
+    private fun updateFavIcon() {
+        val song = PlayerManager.current() ?: return
+        val fav = PlayerManager.favorites.value?.contains(song.favKey()) == true
+        cover.btnFav.setImageResource(
+            if (fav) com.puremusicplayer.R.drawable.ic_heart
+            else com.puremusicplayer.R.drawable.ic_heart_outline
+        )
+        cover.btnFav.setColorFilter(if (fav) accentColor else inactiveTint)
+    }
+
+    // ---------- 倍速播放 ----------
+    private fun cycleSpeed() {
+        val cur = Prefs.playbackSpeed
+        var idx = SPEEDS.indexOfFirst { kotlin.math.abs(it - cur) < 0.001f }
+        idx = (idx + 1) % SPEEDS.size
+        val speed = SPEEDS[idx]
+        Prefs.playbackSpeed = speed
+        PlayerControls.setSpeed(requireContext(), speed)
+        cover.btnSpeed.text = SPEED_LABELS[idx]
+    }
+
+    private fun speedLabel(speed: Float): String {
+        val idx = SPEEDS.indexOfFirst { kotlin.math.abs(it - speed) < 0.001f }
+        return if (idx >= 0) SPEED_LABELS[idx] else "1.0×"
+    }
+
+    // ---------- 睡眠定时器 ----------
+    private fun showSleepDialog() {
+        val opts = arrayOf(
+            getString(R.string.sleep_15),
+            getString(R.string.sleep_30),
+            getString(R.string.sleep_45),
+            getString(R.string.sleep_60),
+            getString(R.string.sleep_end_track),
+            getString(R.string.sleep_cancel)
+        )
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.sleep_timer)
+            .setItems(opts) { dlg, which ->
+                when (which) {
+                    0 -> PlayerControls.sleep(requireContext(), 15)
+                    1 -> PlayerControls.sleep(requireContext(), 30)
+                    2 -> PlayerControls.sleep(requireContext(), 45)
+                    3 -> PlayerControls.sleep(requireContext(), 60)
+                    4 -> PlayerControls.sleep(requireContext(), finishCurrentTrack = true)
+                    5 -> PlayerControls.sleep(requireContext()) // 取消
+                }
+                dlg.dismiss()
+            }
+            .show()
+    }
+
+    private fun updateSleepView(remain: Int) {
+        when {
+            remain <= 0 -> {
+                cover.tvSleep.visibility = View.GONE
+                cover.btnSleep.setColorFilter(inactiveTint)
+            }
+            remain == -1 -> {
+                cover.tvSleep.visibility = View.VISIBLE
+                cover.tvSleep.text = getString(R.string.sleep_status_end_track)
+                cover.btnSleep.setColorFilter(accentColor)
+            }
+            else -> {
+                val m = remain / 60
+                val s = remain % 60
+                cover.tvSleep.visibility = View.VISIBLE
+                cover.tvSleep.text = getString(R.string.sleep_status, "%d:%02d".format(m, s))
+                cover.btnSleep.setColorFilter(accentColor)
+            }
+        }
     }
 
     // ---------- 播放模式 ----------

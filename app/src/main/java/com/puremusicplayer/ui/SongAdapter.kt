@@ -8,11 +8,13 @@ import coil.load
 import com.puremusicplayer.R
 import com.puremusicplayer.data.Song
 import com.puremusicplayer.databinding.ItemSongBinding
+import com.puremusicplayer.player.PlayerManager
 import com.puremusicplayer.util.formatMs
 
 class SongAdapter(
     private val items: List<Song>,
     var currentIndex: Int = -1,
+    private val onFavClick: (Int) -> Unit = {},
     private val onClick: (Int) -> Unit
 ) : RecyclerView.Adapter<SongAdapter.VH>() {
 
@@ -29,6 +31,17 @@ class SongAdapter(
         holder.binding.tvDuration.text = formatMs(song.duration)
         song.albumArtUri?.let { holder.binding.ivArt.load(it) }
         holder.binding.root.setOnClickListener { onClick(position) }
+
+        // 收藏爱心：已收藏用品牌色实心，否则中性灰色描边
+        val fav = PlayerManager.favorites.value?.contains(song.favKey()) == true
+        holder.binding.btnFav.setImageResource(
+            if (fav) R.drawable.ic_heart else R.drawable.ic_heart_outline
+        )
+        holder.binding.btnFav.setColorFilter(
+            if (fav) ContextCompat.getColor(ctx, R.color.brand_primary)
+            else ContextCompat.getColor(ctx, R.color.text_secondary_light)
+        )
+        holder.binding.btnFav.setOnClickListener { onFavClick(position) }
 
         // 高亮当前正在播放的曲目（播放队列场景）
         val isCurrent = position == currentIndex

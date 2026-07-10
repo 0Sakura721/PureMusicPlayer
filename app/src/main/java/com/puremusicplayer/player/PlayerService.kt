@@ -4,7 +4,11 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.MediaPlayer
 import android.media.audiofx.Visualizer
@@ -20,6 +24,7 @@ import com.puremusicplayer.R
 import com.puremusicplayer.data.EmbeddedLyrics
 import com.puremusicplayer.data.MusicRepository
 import com.puremusicplayer.data.Song
+import com.puremusicplayer.util.Prefs
 
 /**
  * 媒体播放前台服务。
@@ -43,6 +48,14 @@ class PlayerService : android.app.Service() {
 
     private var foregroundStarted = false
 
+    // 睡眠定时器
+    private var sleepEndTime = 0L
+    private var sleepFinishTrack = false
+    private var sleepRunnable: Runnable? = null
+
+    // 耳机/蓝牙拔出自动暂停
+    private var noisyReceiver: BroadcastReceiver? = null
+
     companion object {
         private const val NOTIF_ID = 1
         private const val CHANNEL_ID = "puremusic_playback"
@@ -63,6 +76,7 @@ class PlayerService : android.app.Service() {
                 mp.start()
                 PlayerManager.isPlaying.value = true
                 PlayerManager.duration.value = mp.duration
+                applyPlaybackSpeed(mp)
                 updatePlaybackState()
                 updateNotification()
             }
@@ -75,6 +89,7 @@ class PlayerService : android.app.Service() {
 
         setupVisualizer()
         setupMediaSession()
+        registerNoisyReceiver()
         startProgressLoop()
     }
 
@@ -98,6 +113,16 @@ class PlayerService : android.app.Service() {
                 PlayerManager.playMode = PlayMode.values()[mode]
                 updateNotification()
             }
+            PlayerControls.ACTION_SET_SPEED -> {
+                val speed = intent.getFloatExtra(PlayerControls.EXTRA_SPEED, 1.0f)
+                Prefs.playbackSpeed = speed
+                if (::mediaPlayer.isInitialized && mediaPlayer.isPlaying) applyPlaybackSpeed(mediaPlayer)
+            }
+            PlayerControls.ACTION_SLEEP -> {
+                val min = intent.getIntExtra(PlayerControls.EXTRA_SLEEP_MIN, 0)
+                val finish = intent.getIntExtra(PlayerControls.EXTRA_SLEEP_FINISH, 0) == 1
+                if (min <= 0 && !finish) cancelSleepTimer() else startSleepTimer(min, finish)
+            }
         }
         return START_STICKY
     }
@@ -106,6 +131,8 @@ class PlayerService : android.app.Service() {
 
     override fun onDestroy() {
         progressRunnable?.let { handler.removeCallbacks(it) }
+        cancelSleepTimer()
+        unregisterNoisyReceiver()
         releaseVisualizer()
         mediaPlayer.release()
         mediaSession?.release()
@@ -174,8 +201,117 @@ class PlayerService : android.app.Service() {
                 PlayerManager.isPlaying.value = true
                 updatePlaybackState()
             }
-            else -> playAt(step(true), true)
+            else -> {
+                // 「播完当前歌曲后停止」：自然结束后暂停
+                if (sleepFinishTrack) {
+                    sleepFinishTrack = false
+                    cancelSleepTimer()
+                    PlayerManager.sleepRemaining.value = 0
+                    pause()
+                } else {
+                    playAt(step(true), true)
+                }
+            }
         }
+    }
+
+    // ---------- 倍速播放（原生 MediaPlayer.setPlaybackParams，API 23+） ----------
+    private fun applyPlaybackSpeed(mp: MediaPlayer) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val speed = Prefs.playbackSpeed
+        if (speed == 1.0f) return
+        try {
+            val params = mp.playbackParams
+            params.speed = speed
+            mp.playbackParams = params
+        } catch (_: Exception) {
+            // 部分设备/格式不支持调速，忽略
+        }
+    }
+
+    // ---------- 睡眠定时器 ----------
+    private fun startSleepTimer(minutes: Int, finishTrack: Boolean) {
+        cancelSleepTimer()
+        if (finishTrack) {
+            sleepFinishTrack = true
+            PlayerManager.sleepRemaining.value = -1
+            return
+        }
+        if (minutes <= 0) {
+            PlayerManager.sleepRemaining.value = 0
+            return
+        }
+        sleepFinishTrack = false
+        sleepEndTime = System.currentTimeMillis() + minutes * 60_000L
+        sleepRunnable = object : Runnable {
+            override fun run() {
+                val rem = ((sleepEndTime - System.currentTimeMillis()) / 1000).toInt()
+                if (rem <= 0) doSleep()
+                else {
+                    PlayerManager.sleepRemaining.value = rem
+                    handler.postDelayed(this, 1000)
+                }
+            }
+        }
+        handler.post(sleepRunnable!!)
+    }
+
+    /** 倒计时结束：渐隐音量并暂停 */
+    private fun doSleep() {
+        cancelSleepTimer()
+        PlayerManager.sleepRemaining.value = 0
+        fadeAndPause()
+    }
+
+    private fun cancelSleepTimer() {
+        sleepRunnable?.let { handler.removeCallbacks(it) }
+        sleepRunnable = null
+        sleepEndTime = 0L
+        sleepFinishTrack = false
+        if (PlayerManager.sleepRemaining.value != 0) PlayerManager.sleepRemaining.value = 0
+    }
+
+    /** 在约 2 秒内把音量由当前值渐隐到 0，再暂停（避免突兀静音） */
+    private fun fadeAndPause() {
+        if (!::mediaPlayer.isInitialized || !mediaPlayer.isPlaying) {
+            pause()
+            return
+        }
+        val steps = 8
+        var i = 0
+        val runnable = object : Runnable {
+            override fun run() {
+                i++
+                val v = (1f - i.toFloat() / steps).coerceAtLeast(0f)
+                try { mediaPlayer.setVolume(v, v) } catch (_: Exception) {}
+                if (i < steps) handler.postDelayed(this, 250)
+                else {
+                    try { mediaPlayer.setVolume(1f, 1f) } catch (_: Exception) {}
+                    pause()
+                }
+            }
+        }
+        handler.post(runnable)
+    }
+
+    // ---------- 耳机/蓝牙拔出自动暂停 ----------
+    private fun registerNoisyReceiver() {
+        if (noisyReceiver != null) return
+        noisyReceiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                    if (Prefs.pauseOnUnplug && ::mediaPlayer.isInitialized && mediaPlayer.isPlaying) {
+                        pause()
+                    }
+                }
+            }
+        }
+        registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+    }
+
+    private fun unregisterNoisyReceiver() {
+        try { noisyReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
+        noisyReceiver = null
     }
 
     /** 计算下一首 / 上一首索引（含随机与循环） */

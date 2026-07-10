@@ -9,6 +9,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import coil.load
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
+        PlayerManager.syncFavorites()
         applyThemeMode()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -79,6 +81,9 @@ class MainActivity : AppCompatActivity() {
         mini.root.setOnClickListener { switchToNowPlaying() }
         mini.miniPlay.setOnClickListener { PlayerControls.toggle(this) }
         mini.miniNext.setOnClickListener { PlayerControls.next(this) }
+        mini.miniFav.setOnClickListener {
+            PlayerManager.current()?.let { s -> PlayerManager.toggleFav(s.favKey()) }
+        }
 
         PlayerManager.currentSong.observe(this, Observer { song ->
             if (song == null) {
@@ -90,13 +95,31 @@ class MainActivity : AppCompatActivity() {
             mini.miniArtist.text = song.artist
             if (song.albumArtUri != null) mini.miniArt.load(song.albumArtUri)
             else mini.miniArt.setImageDrawable(null)
+            updateMiniFav(
+                PlayerManager.favorites.value?.contains(song.favKey()) == true
+            )
         })
+
+        PlayerManager.favorites.observe(this) { set ->
+            PlayerManager.current()?.let { s -> updateMiniFav(set.contains(s.favKey())) }
+        }
 
         PlayerManager.isPlaying.observe(this) { playing ->
             mini.miniPlay.setImageResource(
                 if (playing) R.drawable.ic_pause else R.drawable.ic_play
             )
         }
+    }
+
+    /** 迷你播放器收藏爱心：已收藏用品牌色实心，否则中性灰描边 */
+    private fun updateMiniFav(fav: Boolean) {
+        binding.miniPlayer.miniFav.setImageResource(
+            if (fav) R.drawable.ic_heart else R.drawable.ic_heart_outline
+        )
+        binding.miniPlayer.miniFav.setColorFilter(
+            if (fav) ContextCompat.getColor(this, R.color.brand_primary)
+            else ContextCompat.getColor(this, R.color.text_secondary_light)
+        )
     }
 
     /** 供 LibraryFragment 在选曲后跳转到“正在播放” */
