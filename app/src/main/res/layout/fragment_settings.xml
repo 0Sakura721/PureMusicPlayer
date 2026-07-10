@@ -264,6 +264,16 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- 可视化实时预览：反映当前样式与强调色，关闭可视化时隐藏 -->
+            <com.puremusicplayer.ui.VisualizerView
+                android:id="@+id/vis_preview"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="4dp" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"

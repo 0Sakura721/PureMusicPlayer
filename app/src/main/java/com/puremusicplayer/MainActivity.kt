@@ -64,12 +64,14 @@ class MainActivity : AppCompatActivity() {
     /** 主页常驻迷你播放器：有歌曲时显示，点击展开播放页，含播放/下一首控制 */
     /** 按偏好应用明暗主题模式（需在 setContentView 前调用） */
     private fun applyThemeMode() {
-        val mode = when (Prefs.themeMode) {
-            1 -> AppCompatDelegate.MODE_NIGHT_NO
-            2 -> AppCompatDelegate.MODE_NIGHT_YES
-            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        val (mode, amoled) = when (Prefs.themeMode) {
+            1 -> AppCompatDelegate.MODE_NIGHT_NO to false
+            2 -> AppCompatDelegate.MODE_NIGHT_YES to false
+            3 -> AppCompatDelegate.MODE_NIGHT_YES to true   // 纯黑（AMOLED 省电）
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM to false
         }
         AppCompatDelegate.setDefaultNightMode(mode)
+        if (amoled) setTheme(R.style.Theme_PureMusicPlayer_Amoled)
     }
 
     private fun setupMiniPlayer() {

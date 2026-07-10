@@ -21,11 +21,12 @@ class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
-    /** 主题模式：跟随系统 / 浅色 / 深色 */
+    /** 主题模式：跟随系统 / 浅色 / 深色 / 纯黑（AMOLED） */
     private val themeOptions = listOf(
         R.string.theme_follow_system to 0,
         R.string.theme_light to 1,
-        R.string.theme_dark to 2
+        R.string.theme_dark to 2,
+        R.string.theme_black to 3
     )
 
     /** 可视化样式：条形 / 圆形 / 波形 */
@@ -82,7 +83,10 @@ class SettingsFragment : Fragment() {
         binding.switchLyrics.isChecked = Prefs.lyricsAnimEnabled
         binding.switchTheme.isChecked = Prefs.dynamicThemeEnabled
 
-        binding.switchVisualizer.setOnCheckedChangeListener { _, v -> Prefs.visualizerEnabled = v }
+        binding.switchVisualizer.setOnCheckedChangeListener { _, v ->
+            Prefs.visualizerEnabled = v
+            updatePreview()
+        }
         binding.switchLyrics.setOnCheckedChangeListener { _, v -> Prefs.lyricsAnimEnabled = v }
         binding.switchTheme.setOnCheckedChangeListener { _, v -> Prefs.dynamicThemeEnabled = v }
 
@@ -106,9 +110,34 @@ class SettingsFragment : Fragment() {
         refreshVisStyleSummary()
         refreshSwatch()
         updateDirChip()
+        setupPreview()
+    }
+
+    // ---------- 可视化实时预览（让设置项即时可见，避免“空壳”） ----------
+    private fun previewAccent(): Int =
+        if (Prefs.accentColor >= 0) Prefs.accentColor
+        else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.brand_primary)
+
+    private fun setupPreview() {
+        binding.visPreview.setStyle(Prefs.visualizerStyle)
+        binding.visPreview.setColor(previewAccent())
+        updatePreview()
+    }
+
+    private fun updatePreview() {
+        if (Prefs.visualizerEnabled) {
+            binding.visPreview.visibility = View.VISIBLE
+            binding.visPreview.setStyle(Prefs.visualizerStyle)
+            binding.visPreview.setColor(previewAccent())
+            binding.visPreview.startPreview()
+        } else {
+            binding.visPreview.stopPreview()
+            binding.visPreview.visibility = View.GONE
+        }
     }
 
     override fun onDestroyView() {
+        binding.visPreview.stopPreview()
         super.onDestroyView()
         _binding = null
     }
@@ -116,7 +145,7 @@ class SettingsFragment : Fragment() {
     // ---------- 主题模式 ----------
     private fun showThemeDialog() {
         val items = themeOptions.map { getString(it.first) }.toTypedArray()
-        val current = Prefs.themeMode.coerceIn(0, 2)
+        val current = Prefs.themeMode.coerceIn(0, 3)
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.theme_mode)
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
@@ -141,7 +170,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun refreshThemeSummary() {
-        val idx = Prefs.themeMode.coerceIn(0, 2)
+        val idx = Prefs.themeMode.coerceIn(0, 3)
         binding.tvThemeSummary.text = getString(themeOptions[idx].first)
     }
 
@@ -156,6 +185,7 @@ class SettingsFragment : Fragment() {
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
                 Prefs.accentColor = options[which].second
                 refreshSwatch()
+                updatePreview()
                 dismissDialog(dlg)
             })
             .setNegativeButton(android.R.string.cancel, null)
@@ -179,6 +209,7 @@ class SettingsFragment : Fragment() {
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
                 Prefs.visualizerStyle = visOptions[which].second
                 refreshVisStyleSummary()
+                updatePreview()
                 dismissDialog(dlg)
             })
             .setNegativeButton(android.R.string.cancel, null)

@@ -44,6 +44,8 @@ class VisualizerView @JvmOverloads constructor(
     private var waveform: ByteArray? = null       // 波形原始数据
     private var style = STYLE_BARS
     private var registered = false
+    /** 演示/预览模式：无音频时也用合成数据持续动画，用于设置页实时预览 */
+    private var preview = false
 
     fun setColor(color: Int) {
         paint.color = color
@@ -98,10 +100,45 @@ class VisualizerView @JvmOverloads constructor(
         val w = width.toFloat()
         val h = height.toFloat()
         if (w == 0f || h == 0f) return
+        if (preview) genPreview()
         when (style) {
             STYLE_CIRCLE -> drawCircle(canvas, w, h)
             STYLE_WAVE -> drawWave(canvas, w, h)
             else -> drawBars(canvas, w, h)
+        }
+        if (preview) postInvalidateOnAnimation()
+    }
+
+    /** 设置页预览：用随时间变化的合成频谱/波形，体现当前样式与强调色 */
+    fun startPreview() {
+        preview = true
+        if (magnitudes == null) magnitudes = FloatArray(64)
+        if (waveform == null) waveform = ByteArray(128)
+        postInvalidateOnAnimation()
+    }
+
+    fun stopPreview() {
+        preview = false
+        magnitudes = null
+        waveform = null
+        invalidate()
+    }
+
+    private fun genPreview() {
+        val t = System.currentTimeMillis() / 1000.0
+        val m = magnitudes ?: FloatArray(64).also { magnitudes = it }
+        for (k in m.indices) {
+            val f = k / m.size.toFloat()
+            val env = 0.35f + 0.65f * (1f - f)      // 低频更高
+            val v = ((sin(t * 3.0 + f * 13.0) * 0.5 + 0.5) * env * 120f +
+                    (k % 5).toFloat() * 4f).toFloat()
+            m[k] = v
+        }
+        val wf = waveform ?: ByteArray(128).also { waveform = it }
+        for (i in wf.indices) {
+            val x = i / wf.size.toFloat()
+            val s = (sin(t * 6.0 + x * 20.0) * 60 + sin(t * 11.0 + x * 33.0) * 28).toInt()
+            wf[i] = (128 + s.coerceIn(-127, 127)).toByte()
         }
     }
 

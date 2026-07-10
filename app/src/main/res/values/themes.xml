@@ -14,4 +14,20 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:enforceNavigationBarContrast">false</item>
     </style>
+
+    <!-- AMOLED 纯黑主题（省电）：仅主题模式=纯黑时使用 -->
+    <style name="Theme.PureMusicPlayer.Amoled" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryVariant">@color/brand_primary_variant</item>
+        <item name="colorSecondary">@color/brand_accent</item>
+        <item name="android:colorBackground">@color/black</item>
+        <item name="colorSurface">@color/black</item>
+        <item name="colorSurfaceVariant">#0A0A0E</item>
+        <item name="colorOnBackground">@color/text_primary_dark</item>
+        <item name="colorOnSurface">@color/text_primary_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
 </resources>
