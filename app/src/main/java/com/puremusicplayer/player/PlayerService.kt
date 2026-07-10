@@ -19,6 +19,7 @@ import android.os.PowerManager
 import android.provider.MediaStore
 import com.puremusicplayer.MainActivity
 import com.puremusicplayer.R
+import com.puremusicplayer.data.EmbeddedLyrics
 import com.puremusicplayer.data.MusicRepository
 import com.puremusicplayer.data.Song
 
@@ -219,8 +220,8 @@ class PlayerService : android.app.Service() {
             return
         }
 
-        // 回退：读取 FLAC 等文件内嵌歌词
-        val embedded = MusicRepository.findEmbeddedLyrics(this, song)
+        // 回退：读取 FLAC / OGG / MP3 / M4A 等文件内嵌歌词
+        val embedded = EmbeddedLyrics.read(this, song)
         if (embedded != null) {
             Thread {
                 try {
