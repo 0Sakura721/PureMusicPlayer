@@ -9,6 +9,7 @@
 ## 功能
 
 - **本地曲库扫描**：通过 `MediaStore` 读取设备音乐，按 歌曲 / 专辑 / 艺术家 分组浏览
+- **曲库排序**：歌曲与收藏列表可按 标题 / 艺术家 / 专辑（升序）或 时长（降序）排序，选择记忆于 `SharedPreferences`（借鉴 Music Player GO / Auxio）
 - **播放控制**：播放 / 暂停 / 上一首 / 下一首 / 拖动进度；顺序、随机、单曲循环、列表循环
 - **后台播放**：媒体播放前台服务，锁屏与控制中心可控，媒体通知常驻
 - **歌词**：优先匹配同目录同名 `.lrc`，其次读取文件内嵌歌词——FLAC / OGG（Vorbis Comment `LYRICS`/`UNSYNCEDLYRICS`）、MP3（ID3v2 `USLT`）、M4A / MP4（`©lyr` 原子）、WAV（RIFF LIST/INFO 的 `lyr`/`ILT` 块）；当前行高亮 + 平滑滚动；无时间戳的纯文本歌词逐行兜底展示。解析为纯 Kotlin 字节解析，零额外依赖
