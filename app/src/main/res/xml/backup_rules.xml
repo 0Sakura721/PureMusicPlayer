@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- 默认备份用户数据；播放进度等偏好已存于 SharedPreferences，可随自动备份恢复 -->
+</full-backup-content>

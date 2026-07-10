@@ -1,0 +1,48 @@
+<resources>
+    <string name="app_name">PureMusic</string>
+
+    <!-- 底部导航 -->
+    <string name="nav_library">曲库</string>
+    <string name="nav_now_playing">正在播放</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 列表分类 -->
+    <string name="tab_songs">歌曲</string>
+    <string name="tab_albums">专辑</string>
+    <string name="tab_artists">艺术家</string>
+
+    <!-- 播放控制 -->
+    <string name="action_play">播放</string>
+    <string name="action_pause">暂停</string>
+    <string name="action_next">下一首</string>
+    <string name="action_previous">上一首</string>
+    <string name="action_shuffle">随机播放</string>
+    <string name="action_repeat">列表循环</string>
+    <string name="action_repeat_one">单曲循环</string>
+    <string name="action_repeat_off">顺序播放</string>
+    <string name="action_lyrics">歌词</string>
+    <string name="action_visualizer">可视化</string>
+
+    <!-- 状态/空态 -->
+    <string name="empty_library">没有找到本地音乐\n请确保已授权读取音频，或把音乐放到设备存储中</string>
+    <string name="permission_rationale">PureMusic 需要读取音频权限才能扫描你设备上的本地音乐。</string>
+    <string name="grant_permission">授权</string>
+    <string name="no_lyrics">暂无歌词\n把同名 .lrc 文件放在歌曲同目录即可显示</string>
+    <string name="unknown_title">未知标题</string>
+    <string name="unknown_artist">未知艺术家</string>
+    <string name="unknown_album">未知专辑</string>
+
+    <!-- 设置 -->
+    <string name="settings_visualizer">音频可视化</string>
+    <string name="settings_visualizer_summary">在播放页显示随音乐跳动的频谱（Mineradio 风格）</string>
+    <string name="settings_lyrics">歌词动画</string>
+    <string name="settings_lyrics_summary">启用平滑滚动与高亮（folia 风格）</string>
+    <string name="settings_dynamic_theme">动态主题色</string>
+    <string name="settings_dynamic_theme_summary">根据专辑封面自动取色（folia 风格）</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_summary">轻量本地音乐播放器 · 融合 Salt / folia / Mineradio 设计</string>
+
+    <!-- 通知 -->
+    <string name="channel_name">媒体播放</string>
+    <string name="channel_description">PureMusic 后台播放控制</string>
+</resources>

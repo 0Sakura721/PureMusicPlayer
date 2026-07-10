@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌主色（深紫蓝，呼应沉浸音乐氛围） -->
+    <color name="brand_primary">#6C5CE7</color>
+    <color name="brand_primary_variant">#4B3FBF</color>
+    <color name="brand_accent">#00CEC9</color>
+
+    <!-- 深色基底（Salt 风：干净、低饱和） -->
+    <color name="black">#000000</color>
+    <color name="dark_bg">#12121A</color>
+    <color name="dark_surface">#1E1E2A</color>
+    <color name="dark_surface_variant">#2A2A38</color>
+
+    <!-- 浅色基底 -->
+    <color name="light_bg">#F7F7FB</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_surface_variant">#EDEDF2</color>
+
+    <color name="white">#FFFFFFFF</color>
+    <color name="text_primary_dark">#FFFFFFFF</color>
+    <color name="text_secondary_dark">#B8B8C8</color>
+    <color name="text_primary_light">#1A1A24</color>
+    <color name="text_secondary_light">#6A6A7A</color>
+</resources>

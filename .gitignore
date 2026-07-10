@@ -1,0 +1,21 @@
+# Built application files
+*.apk
+*.aar
+*.jar
+*.war
+
+# Gradle / IDE
+.gradle/
+build/
+/local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IntelliJ / Android Studio
+*.iml
+.idea/
+.DS_Store
+*.hprof
+
+# Keep gradle wrapper (gradlew, gradlew.bat, gradle/wrapper/*) tracked.
