@@ -16,11 +16,12 @@ import java.nio.charset.StandardCharsets
  *  - FLAC / OGG：Vorbis Comment 的 LYRICS / UNSYNCEDLYRICS
  *  - MP3：ID3v2 的 USLT / ULT 帧
  *  - M4A / MP4：meta/ilst 下的 ©lyr 原子
+ *  - WAV：RIFF LIST/INFO 下的 lyr / ILT 块
  * 仅读取文件头部的元数据块，不加载整首。
  */
 object EmbeddedLyrics {
 
-    private const val M4A_BUDGET = 12 * 1024 * 1024 // M4A 容器扫描上限，避免极端情况下读整首大文件
+    private const val M4A_BUDGET = 24 * 1024 * 1024 // M4A 容器扫描上限，避免极端情况下读整首大文件
 
     fun read(context: Context, song: Song): String? {
         val uri = ContentUris.withAppendedId(
@@ -38,6 +39,7 @@ object EmbeddedLyrics {
                     Format.OGG -> readOggLyrics(combined)
                     Format.MP3 -> readMp3Lyrics(combined)
                     Format.MP4 -> readM4ALyrics(combined)
+                    Format.WAV -> readWavLyrics(combined)
                     else -> null
                 }
             }
@@ -47,13 +49,15 @@ object EmbeddedLyrics {
     }
 
     // ---------- 格式探测 ----------
-    private enum class Format { FLAC, OGG, MP3, MP4, UNKNOWN }
+    private enum class Format { FLAC, OGG, MP3, MP4, WAV, UNKNOWN }
 
     private fun detect(head: ByteArray): Format {
         if (eq(head, 'f', 'L', 'a', 'C')) return Format.FLAC
         if (eq(head, 'O', 'g', 'g', 'S')) return Format.OGG
         if (eq(head, 'I', 'D', '3')) return Format.MP3
         if (head.size >= 8 && eq(head.copyOfRange(4, 8), 'f', 't', 'y', 'p')) return Format.MP4
+        if (head.size >= 12 && eq(head, 'R', 'I', 'F', 'F') && eq(head.copyOfRange(8, 12), 'W', 'A', 'V', 'E'))
+            return Format.WAV
         return Format.UNKNOWN
     }
 
@@ -359,5 +363,83 @@ object EmbeddedLyrics {
         }
         val out = bos.toByteArray()
         return if (out.isNotEmpty()) out else null
+    }
+
+    // ---------- WAV（RIFF LIST/INFO 的 lyr / ILT） ----------
+    private fun readWavLyrics(stream: InputStream): String? {
+        val dis = DataInputStream(BufferedInputStream(stream))
+        val riff = ByteArray(4)
+        if (!readFully(dis, riff) || !eq(riff, 'R', 'I', 'F', 'F')) return null
+        skipFully(dis, 4) // RIFF 大小
+        val wave = ByteArray(4)
+        if (!readFully(dis, wave) || !eq(wave, 'W', 'A', 'V', 'E')) return null
+
+        while (true) {
+            val id = ByteArray(4)
+            if (!readFully(dis, id)) break
+            val size = readLE32Stream(dis)
+            if (size < 0) break
+
+            if (eq(id, 'L', 'I', 'S', 'T')) {
+                // LIST 块：紧跟 4 字节类型（如 INFO），其内为子块
+                val type = ByteArray(4)
+                if (!readFully(dis, type)) break
+                val text = parseWavList(dis, size - 4)
+                if (text != null) return text
+            } else if (eq(id, 'l', 'y', 'r', ' ') || eq(id, 'I', 'L', 'T', ' ')) {
+                // 顶层歌词块（少见）
+                val bytes = ByteArray(size)
+                if (!readFully(dis, bytes)) break
+                val t = decodeWavText(bytes)
+                if (t.isNotBlank()) return t
+                if (size % 2 == 1) dis.read()
+            } else {
+                skipFully(dis, size + (size % 2))
+            }
+        }
+        return null
+    }
+
+    private fun parseWavList(dis: DataInputStream, length: Int): String? {
+        var left = length
+        while (left >= 8) {
+            val subId = ByteArray(4)
+            if (!readFully(dis, subId)) break
+            val subSize = readLE32Stream(dis)
+            if (subSize < 0) break
+            left -= 8
+            if (eq(subId, 'l', 'y', 'r', ' ') || eq(subId, 'I', 'L', 'T', ' ')) {
+                val bytes = ByteArray(subSize)
+                if (!readFully(dis, bytes)) break
+                left -= subSize
+                if (subSize % 2 == 1) { dis.read(); left -= 1 }
+                val t = decodeWavText(bytes)
+                if (t.isNotBlank()) return t
+            } else {
+                val pad = subSize + (subSize % 2)
+                skipFully(dis, pad)
+                left -= pad
+            }
+        }
+        return null
+    }
+
+    private fun decodeWavText(bytes: ByteArray): String {
+        // 去掉尾部空字节与空白，再按 UTF-8 解码（失败回退 ISO-8859-1）
+        var end = bytes.size
+        while (end > 0 && (bytes[end - 1].toInt() and 0xFF) <= 0x20) end--
+        val clean = bytes.copyOfRange(0, end)
+        if (clean.isEmpty()) return ""
+        return try {
+            String(clean, StandardCharsets.UTF_8)
+        } catch (_: Exception) {
+            String(clean, StandardCharsets.ISO_8859_1)
+        }
+    }
+
+    private fun readLE32Stream(dis: DataInputStream): Int {
+        val b = ByteArray(4)
+        if (!readFully(dis, b)) return -1
+        return readLE32(b, 0)
     }
 }
