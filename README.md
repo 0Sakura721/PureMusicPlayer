@@ -8,16 +8,6 @@
 
 ## 设计理念来源（均为“借鉴思路、原创实现”，未复制其代码）
 
-| 项目 | 许可证 | 借鉴点 |
-|---|---|---|
-| [Salt Player](https://github.com/Moriafly/SaltPlayerSource) | MIT | 极简的本地音乐 UX、干净清爽的列表与播放页 |
-| [folia-major](https://github.com/chthollyphile/folia-major) | AGPL-3.0 | 全屏歌词的当前行高亮 + 平滑滚动、按专辑封面自动取色生成主题 |
-| [Mineradio](https://github.com/XxHuberrr/Mineradio) | GPL-3.0 | 随音乐跳动的音频频谱可视化（FFT） |
-
-由于以上项目分别采用 AGPL-3.0 / GPL-3.0 强 copyleft 许可，本项目以**原创代码**实现其设计思路，避免许可传染；详情见 [NOTICE.md](NOTICE.md)。
-
----
-
 ## 功能
 
 - **本地曲库扫描**：通过 `MediaStore` 读取设备音乐，按 歌曲 / 专辑 / 艺术家 分组浏览
