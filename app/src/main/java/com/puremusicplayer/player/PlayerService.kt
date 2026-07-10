@@ -28,7 +28,7 @@ import com.puremusicplayer.data.Song
  *
  * 整合（均为平台原生能力，零额外媒体依赖，保持精简）：
  *  - MediaPlayer：本地音频播放内核
- *  - Visualizer：音频 FFT，驱动可视化（Mineradio 风，无需麦克风权限）
+ *  - Visualizer：音频 FFT，驱动可视化（无需麦克风权限）
  *  - android.media.session.MediaSession：锁屏 / 控制中心 / 媒体键统一控制
  *  - 前台通知（Notification.MediaStyle）：后台持续播放
  *

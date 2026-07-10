@@ -10,7 +10,7 @@ import android.provider.MediaStore
  * 本地曲库数据源。
  * 通过 MediaStore 扫描设备上的音乐文件，并支持按“同名 .lrc”匹配歌词文件。
  *
- * 设计取向（Salt 风）：只读取本地媒体库，不做任何上传/网络请求。
+ * 设计取向：只读取本地媒体库，不做任何上传/网络请求。
  */
 object MusicRepository {
 

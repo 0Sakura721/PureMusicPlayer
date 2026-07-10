@@ -11,7 +11,7 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * 全屏歌词视图（folia 风格：当前行高亮 + 平滑滚动）。
+ * 全屏歌词视图（当前行高亮 + 平滑滚动）。
  * 纯 Canvas 绘制，零依赖、轻量。
  *
  * 用法：

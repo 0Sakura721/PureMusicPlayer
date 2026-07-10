@@ -137,7 +137,7 @@ class NowPlayingFragment : Fragment() {
         sheet.show(childFragmentManager, "queue")
     }
 
-    // ---------- 动态主题（folia 风：按封面取色） ----------
+    // ---------- 动态主题（按封面取色） ----------
     private fun applyDynamicTheme(uri: Uri?) {
         if (uri == null) {
             setAccent(accentColor)

@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 浅色主题（Salt 风干净浅底） -->
+    <!-- 浅色主题 -->
     <style name="Theme.PureMusicPlayer" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/brand_primary</item>
         <item name="colorPrimaryVariant">@color/brand_primary_variant</item>

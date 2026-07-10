@@ -5,7 +5,7 @@
     <color name="brand_primary_variant">#4B3FBF</color>
     <color name="brand_accent">#00CEC9</color>
 
-    <!-- 深色基底（Salt 风：干净、低饱和） -->
+    <!-- 深色基底 -->
     <color name="black">#000000</color>
     <color name="dark_bg">#12121A</color>
     <color name="dark_surface">#1E1E2A</color>

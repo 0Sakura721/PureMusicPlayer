@@ -71,7 +71,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
 
-    // 从专辑封面取主色，做轻量动态主题（呼应 folia 的“按封面生成主题”）
+    // 从专辑封面取主色，做轻量动态主题
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // 轻量异步加载专辑封面（来自 MediaStore URI）

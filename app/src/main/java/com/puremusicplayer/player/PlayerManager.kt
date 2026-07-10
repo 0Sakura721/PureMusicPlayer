@@ -26,7 +26,7 @@ object PlayerManager {
     val lyrics = MutableLiveData<List<LyricLine>>(emptyList())
     val hasLyrics = MutableLiveData(false)
 
-    /** 可视化数据槽：由 PlayerService 推送 FFT，VisualizerView 注册接收（Mineradio 风） */
+    /** 可视化数据槽：由 PlayerService 推送 FFT，VisualizerView 注册接收 */
     var fftSink: ((ByteArray) -> Unit)? = null
 
     fun current(): Song? = if (currentIndex in playlist.indices) playlist[currentIndex] else null

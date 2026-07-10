@@ -11,7 +11,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * 音频可视化视图（Mineradio 风格：随音乐跳动的频谱柱）。
+ * 音频可视化视图（随音乐跳动的频谱柱）。
  * 通过注册 PlayerManager.fftSink 接收 FFT 数据，使用 Canvas 绘制，
  * 无第三方图形库，自动限制柱数以降低低端设备开销。
  */

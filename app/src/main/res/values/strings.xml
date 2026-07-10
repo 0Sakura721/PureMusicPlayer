@@ -41,13 +41,13 @@
 
     <!-- 设置 -->
     <string name="settings_visualizer">音频可视化</string>
-    <string name="settings_visualizer_summary">在播放页显示随音乐跳动的频谱（Mineradio 风格）</string>
+    <string name="settings_visualizer_summary">在播放页显示随音乐跳动的频谱</string>
     <string name="settings_lyrics">歌词动画</string>
-    <string name="settings_lyrics_summary">启用平滑滚动与高亮（folia 风格）</string>
+    <string name="settings_lyrics_summary">启用平滑滚动与高亮</string>
     <string name="settings_dynamic_theme">动态主题色</string>
-    <string name="settings_dynamic_theme_summary">根据专辑封面自动取色（folia 风格）</string>
+    <string name="settings_dynamic_theme_summary">根据专辑封面自动取色</string>
     <string name="settings_about">关于</string>
-    <string name="settings_about_summary">轻量本地音乐播放器 · 融合 Salt / folia / Mineradio 设计</string>
+    <string name="settings_about_summary">轻量本地音乐播放器</string>
 
     <!-- 通知 -->
     <string name="channel_name">媒体播放</string>

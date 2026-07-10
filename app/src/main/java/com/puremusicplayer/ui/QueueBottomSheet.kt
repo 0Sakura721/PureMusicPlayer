@@ -14,7 +14,7 @@ import com.puremusicplayer.player.PlayerManager
 import java.util.Collections
 
 /**
- * 播放队列底部弹层（Salt 风）。
+ * 播放队列底部弹层。
  * 直接操作全局 PlayerManager.playlist：
  *  - 点击：跳转播放该首
  *  - 拖拽：重排队列（自动修正 currentIndex）
