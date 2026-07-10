@@ -37,29 +37,34 @@ object MusicRepository {
         val selection =
             "${MediaStore.Audio.Media.IS_MUSIC} = ? AND ${MediaStore.Audio.Media.DURATION} > ?"
         val selectionArgs = arrayOf("1", "30000")
-        val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE LOCALIZED ASC"
+        // 用 COLLATE NOCASE（各 Android 版本稳定支持）。
+        // 注意：避免 COLLATE LOCALIZED —— 部分版本（含 Android 16 的 ICU 变更）会让 query() 抛 SQLiteException。
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
 
         resolver.query(uri, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-            val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-            val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+            // 列索引在查询成功后解析一次；用 getColumnIndex（缺失返回 -1）而非 OrThrow，避免缺失列直接崩溃
+            val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+            val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+            val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+            val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
+
+            if (idCol < 0) return@use  // 关键列缺失则安全跳过，不抛异常
 
             while (cursor.moveToNext()) {
                 songs.add(
                     Song(
                         id = cursor.getLong(idCol),
-                        title = cursor.getString(titleCol) ?: "未知标题",
-                        artist = cursor.getString(artistCol) ?: "未知艺术家",
-                        album = cursor.getString(albumCol) ?: "未知专辑",
-                        albumId = cursor.getLong(albumIdCol),
-                        duration = cursor.getLong(durCol),
-                        data = cursor.getString(dataCol) ?: "",
-                        size = cursor.getLong(sizeCol)
+                        title = if (titleCol >= 0) (cursor.getString(titleCol) ?: "未知标题") else "未知标题",
+                        artist = if (artistCol >= 0) (cursor.getString(artistCol) ?: "未知艺术家") else "未知艺术家",
+                        album = if (albumCol >= 0) (cursor.getString(albumCol) ?: "未知专辑") else "未知专辑",
+                        albumId = if (albumIdCol >= 0) cursor.getLong(albumIdCol) else 0L,
+                        duration = if (durCol >= 0) cursor.getLong(durCol) else 0L,
+                        data = if (dataCol >= 0) (cursor.getString(dataCol) ?: "") else "",
+                        size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
                     )
                 )
             }

@@ -65,7 +65,12 @@ class LibraryFragment : Fragment() {
     }
 
     private fun loadLibrary() {
-        allSongs = MusicRepository.loadSongs(requireContext())
+        try {
+            allSongs = MusicRepository.loadSongs(requireContext())
+        } catch (e: Exception) {
+            // 扫描失败（如 Android 16 上 MediaStore 行为差异）时安全降级为空列表，而非崩溃
+            allSongs = emptyList()
+        }
         PlayerManager.playlist.clear()
         PlayerManager.playlist.addAll(allSongs)
         PlayerManager.playMode = PlayMode.values().getOrElse(Prefs.playModeOrdinal) { PlayMode.REPEAT_ALL }
