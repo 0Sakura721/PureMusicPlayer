@@ -1,9 +1,12 @@
 package com.puremusicplayer.ui
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -28,6 +31,9 @@ class LibraryFragment : Fragment() {
     private var albums = emptyList<MusicGroup>()
     private var artists = emptyList<MusicGroup>()
 
+    private var query = ""
+    private var currentTab = 0
+
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -50,10 +56,15 @@ class LibraryFragment : Fragment() {
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_albums))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.tab_artists))
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) = selectTab(tab?.position ?: 0)
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                currentTab = tab?.position ?: 0
+                applyView()
+            }
             override fun onTabUnselected(tab: TabLayout.Tab?) = Unit
             override fun onTabReselected(tab: TabLayout.Tab?) = Unit
         })
+
+        setupSearch()
 
         if (Permissions.hasAudioPermission(requireContext())) loadLibrary()
         else requestPermission.launch(Permissions.audioPermissionName())
@@ -62,6 +73,24 @@ class LibraryFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun setupSearch() {
+        binding.searchView.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                query = s?.toString()?.trim().orEmpty()
+                binding.searchClear.visibility =
+                    if (query.isEmpty()) View.GONE else View.VISIBLE
+                applyView()
+            }
+        })
+
+        binding.searchClear.setOnClickListener {
+            binding.searchView.setText("")
+            binding.searchView.clearFocus()
+        }
     }
 
     private fun loadLibrary() {
@@ -87,21 +116,42 @@ class LibraryFragment : Fragment() {
             }
             .sortedBy { it.title }
 
-        showEmpty(allSongs.isEmpty())
-        selectTab(binding.tabLayout.selectedTabPosition)
+        currentTab = binding.tabLayout.selectedTabPosition
+        applyView()
     }
 
-    private fun selectTab(index: Int) {
-        val adapter = when (index) {
-            0 -> SongAdapter(allSongs) { playFromAll(it) }
-            1 -> GroupAdapter(albums) { playGroup(it) }
-            2 -> GroupAdapter(artists) { playGroup(it) }
-            else -> null
+    /** 根据当前 tab 与搜索词刷新列表与空态 */
+    private fun applyView() {
+        val q = query.lowercase()
+
+        val filteredSongs = if (q.isEmpty()) allSongs else allSongs.filter { matchesSong(it, q) }
+        val filteredAlbums = if (q.isEmpty()) albums else albums.filter { it.title.lowercase().contains(q) }
+        val filteredArtists = if (q.isEmpty()) artists else artists.filter { it.title.lowercase().contains(q) }
+
+        val (adapter, listEmpty) = when (currentTab) {
+            0 -> SongAdapter(filteredSongs) { playFrom(it, filteredSongs) } to filteredSongs.isEmpty()
+            1 -> GroupAdapter(filteredAlbums) { playGroup(it) } to filteredAlbums.isEmpty()
+            2 -> GroupAdapter(filteredArtists) { playGroup(it) } to filteredArtists.isEmpty()
+            else -> null to true
         }
         binding.recyclerView.adapter = adapter
+
+        showEmpty(listEmpty)
+        if (listEmpty) {
+            binding.tvEmpty.text =
+                if (q.isEmpty()) getString(R.string.empty_library) else getString(R.string.search_empty)
+        }
     }
 
-    private fun playFromAll(index: Int) {
+    private fun matchesSong(song: Song, q: String): Boolean =
+        song.title.lowercase().contains(q) ||
+                song.artist.lowercase().contains(q) ||
+                song.album.lowercase().contains(q)
+
+    private fun playFrom(index: Int, list: List<Song>) {
+        if (index !in list.indices) return
+        PlayerManager.playlist.clear()
+        PlayerManager.playlist.addAll(list)
         PlayerManager.currentIndex = index
         PlayerControls.play(requireContext())
         (activity as? MainActivity)?.switchToNowPlaying()

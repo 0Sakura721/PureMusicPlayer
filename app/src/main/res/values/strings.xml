@@ -11,6 +11,11 @@
     <string name="tab_albums">专辑</string>
     <string name="tab_artists">艺术家</string>
 
+    <!-- 搜索 -->
+    <string name="search_hint">搜索歌曲、专辑或艺术家</string>
+    <string name="clear_search">清除搜索</string>
+    <string name="search_empty">没有匹配的结果</string>
+
     <!-- 播放控制 -->
     <string name="action_play">播放</string>
     <string name="action_pause">暂停</string>
@@ -29,7 +34,7 @@
     <string name="empty_library">没有找到本地音乐\n请确保已授权读取音频，或把音乐放到设备存储中</string>
     <string name="permission_rationale">PureMusic 需要读取音频权限才能扫描你设备上的本地音乐。</string>
     <string name="grant_permission">授权</string>
-    <string name="no_lyrics">暂无歌词\n把同名 .lrc 文件放在歌曲同目录即可显示</string>
+    <string name="no_lyrics">暂无歌词\n把同名 .lrc 放在歌曲同目录，或读取 FLAC 内嵌歌词即可显示</string>
     <string name="unknown_title">未知标题</string>
     <string name="unknown_artist">未知艺术家</string>
     <string name="unknown_album">未知专辑</string>
