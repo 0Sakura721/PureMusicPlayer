@@ -63,6 +63,18 @@
 
 > 首次构建会自动下载 Gradle 与依赖。若在受限网络/无 SDK 环境，请用 Android Studio 打开以自动配置。
 
+### 自动构建（GitHub Actions）
+仓库已配置 `.github/workflows/build-apk.yml`：每次向 `main` 推送（或手动 `workflow_dispatch`）会自动：
+检出 → 安装 JDK 17 + Android SDK（API 36）→ Gradle 构建 `assembleDebug` 与 `assembleRelease` → 上传 APK 产物。
+
+获取 APK：进入仓库 **Actions → 最近一次 Build APK 运行 → 右侧 Artifacts `puremusic-apks`** 下载。
+- `app-debug.apk`：已用默认 debug keystore 签名，**可直接安装到 armeabi-v7a / arm64-v8a 设备**。
+- `app-release-unsigned.apk`：已开启混淆与资源压缩（约 2.2MB），需自行签名后才能安装。
+
+若要让 CI 直接产出**可安装的签名 release**，在仓库 `Settings → Secrets` 中添加：
+`SIGNING_KEY`（base64 编码的 keystore，命令 `base64 -w0 keystore.jks`）、
+`KEY_ALIAS`、`KEY_PASSWORD`、`STORE_PASSWORD`，并在 workflow 中追加签名步骤即可。
+
 ### 权限说明
 - 读取音频：Android 13+ 为 `READ_MEDIA_AUDIO`，低版本为 `READ_EXTERNAL_STORAGE`（应用内动态申请）
 - 显示媒体通知：Android 13+ 需 `POST_NOTIFICATIONS`
