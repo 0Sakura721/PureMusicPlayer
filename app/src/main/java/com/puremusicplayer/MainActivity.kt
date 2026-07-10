@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
         PlayerManager.syncFavorites()
+        PlayerManager.restoreQueue(this)
         applyThemeMode()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

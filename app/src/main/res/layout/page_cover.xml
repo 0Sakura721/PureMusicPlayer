@@ -157,6 +157,15 @@
             android:tint="?attr/colorOnSurface" />
 
         <ImageButton
+            android:id="@+id/btn_eq"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/equalizer"
+            android:src="@drawable/ic_settings"
+            android:tint="?attr/colorOnSurface" />
+
+        <ImageButton
             android:id="@+id/btn_prev"
             android:layout_width="48dp"
             android:layout_height="48dp"

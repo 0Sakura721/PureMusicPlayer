@@ -25,6 +25,7 @@ import com.puremusicplayer.data.EmbeddedLyrics
 import com.puremusicplayer.data.MusicRepository
 import com.puremusicplayer.data.Song
 import com.puremusicplayer.util.Prefs
+import com.puremusicplayer.player.EqualizerHelper
 
 /**
  * 媒体播放前台服务。
@@ -73,7 +74,14 @@ class PlayerService : android.app.Service() {
         mediaPlayer = MediaPlayer().apply {
             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
             setOnPreparedListener { mp ->
+                // 续播：回到保存的播放位置
+                val savedPos = PlayerManager.progress.value ?: 0
+                if (savedPos > 0 && savedPos < mp.duration) {
+                    mp.seekTo(savedPos)
+                    PlayerManager.progress.value = savedPos
+                }
                 mp.start()
+                PlayerManager.isPlaying.value = true
                 PlayerManager.isPlaying.value = true
                 PlayerManager.duration.value = mp.duration
                 applyPlaybackSpeed(mp)
@@ -123,6 +131,17 @@ class PlayerService : android.app.Service() {
                 val finish = intent.getIntExtra(PlayerControls.EXTRA_SLEEP_FINISH, 0) == 1
                 if (min <= 0 && !finish) cancelSleepTimer() else startSleepTimer(min, finish)
             }
+            PlayerControls.ACTION_SET_EQ -> {
+                val on = intent.getIntExtra(PlayerControls.EXTRA_EQ_ENABLED, 0) == 1
+                Prefs.equalizerEnabled = on
+                EqualizerHelper.setEnabled(on)
+            }
+            PlayerControls.ACTION_SET_EQ_PRESET -> {
+                val idx = intent.getIntExtra(PlayerControls.EXTRA_EQ_PRESET, 0)
+                Prefs.equalizerPreset = idx
+                val presets = EqualizerHelper.Preset.values()
+                EqualizerHelper.applyPreset(presets[idx.coerceIn(0, presets.size - 1)])
+            }
         }
         return START_STICKY
     }
@@ -134,6 +153,7 @@ class PlayerService : android.app.Service() {
         cancelSleepTimer()
         unregisterNoisyReceiver()
         releaseVisualizer()
+        PlayerManager.saveQueue(this)
         mediaPlayer.release()
         mediaSession?.release()
         super.onDestroy()
@@ -144,6 +164,7 @@ class PlayerService : android.app.Service() {
         val list = PlayerManager.playlist
         if (index !in list.indices) return
         PlayerManager.currentIndex = index
+        PlayerManager.saveQueue(this)
         val song = list[index]
         try {
             mediaPlayer.reset()
@@ -176,6 +197,7 @@ class PlayerService : android.app.Service() {
         if (mediaPlayer.isPlaying) {
             mediaPlayer.pause()
             PlayerManager.isPlaying.value = false
+            PlayerManager.saveQueue(this)
             updatePlaybackState()
             updateNotification()
         }
@@ -189,6 +211,7 @@ class PlayerService : android.app.Service() {
         if (posMs in 0..mediaPlayer.duration) {
             mediaPlayer.seekTo(posMs)
             PlayerManager.progress.value = posMs
+            PlayerManager.saveQueue(this)
             updatePlaybackState()
         }
     }
@@ -371,6 +394,14 @@ class PlayerService : android.app.Service() {
         try {
             val sessionId = mediaPlayer.audioSessionId
             if (sessionId == 0) return
+            // 初始化均衡器
+            EqualizerHelper.init(sessionId)
+            if (Prefs.equalizerEnabled) {
+                EqualizerHelper.setEnabled(true)
+                val presets = EqualizerHelper.Preset.values()
+                val idx = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
+                EqualizerHelper.applyPreset(presets[idx])
+            }
             visualizer = Visualizer(sessionId).apply {
                 captureSize = Visualizer.getCaptureSizeRange()[1]
                 setDataCaptureListener(
@@ -401,6 +432,7 @@ class PlayerService : android.app.Service() {
     private fun releaseVisualizer() {
         try { visualizer?.enabled = false; visualizer?.release() } catch (_: Exception) {}
         visualizer = null
+        EqualizerHelper.release()
     }
 
     // ---------- MediaSession（框架原生，API 21+） ----------
