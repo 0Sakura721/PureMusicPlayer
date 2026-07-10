@@ -17,6 +17,14 @@
     <string name="clear_search">清除搜索</string>
     <string name="search_empty">没有匹配的结果</string>
 
+    <!-- 曲库排序 -->
+    <string name="sort">排序</string>
+    <string name="sort_by">排序方式</string>
+    <string name="sort_title">标题</string>
+    <string name="sort_artist">艺术家</string>
+    <string name="sort_album">专辑</string>
+    <string name="sort_duration">时长（长→短）</string>
+
     <!-- 目录选择 -->
     <string name="pick_directory">选择音乐目录</string>
     <string name="clear_directory">清除目录限制</string>

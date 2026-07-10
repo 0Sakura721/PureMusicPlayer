@@ -39,6 +39,8 @@ class LibraryFragment : Fragment() {
 
     private var query = ""
     private var currentTab = 0
+    /** 曲库排序方式：0 标题 / 1 艺术家 / 2 专辑 / 3 时长（降序）；持久化于 Prefs */
+    private var sortMode = 0
     /** 记录上次加载所用的目录 Uri，仅在变更时（如设置页改了目录）才重新扫描 */
     private var lastLoadedTreeUri: String? = "<<init>>"
     /** 防止重复扫描 */
@@ -76,6 +78,10 @@ class LibraryFragment : Fragment() {
         })
 
         setupSearch()
+
+        // 曲库排序：从偏好恢复上次选择，点击“排序”弹出选择
+        sortMode = Prefs.sortModeOrdinal
+        binding.sortButton.setOnClickListener { showSortDialog() }
 
         // 收藏集合变化时刷新（迷你栏/播放页也可能修改收藏）
         PlayerManager.favorites.observe(viewLifecycleOwner) { set ->
@@ -187,20 +193,23 @@ class LibraryFragment : Fragment() {
         val filteredArtists = if (q.isEmpty()) artists else artists.filter { it.title.lowercase().contains(q) }
         val filteredFavs = if (q.isEmpty()) favoritesList else favoritesList.filter { matchesSong(it, q) }
 
+        val shownSongs = sortSongs(filteredSongs)
+        val shownFavs = sortSongs(filteredFavs)
+
         val (adapter, listEmpty) = when (currentTab) {
-            0 -> SongAdapter(filteredSongs,
+            0 -> SongAdapter(shownSongs,
                 onFavClick = { pos ->
-                    filteredSongs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
+                    shownSongs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
                     binding.recyclerView.adapter?.notifyItemChanged(pos)
-                }) { playFrom(it, filteredSongs) } to filteredSongs.isEmpty()
+                }) { playFrom(it, shownSongs) } to shownSongs.isEmpty()
             1 -> GroupAdapter(filteredAlbums) { playGroup(it) } to filteredAlbums.isEmpty()
             2 -> GroupAdapter(filteredArtists) { playGroup(it) } to filteredArtists.isEmpty()
-            3 -> SongAdapter(filteredFavs,
+            3 -> SongAdapter(shownFavs,
                 onFavClick = { pos ->
-                    filteredFavs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
+                    shownFavs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
                     favoritesList = allSongs.filter { PlayerManager.favorites.value?.contains(it.favKey()) == true }
                     applyView()
-                }) { playFrom(it, filteredFavs) } to filteredFavs.isEmpty()
+                }) { playFrom(it, shownFavs) } to shownFavs.isEmpty()
             else -> null to true
         }
         binding.recyclerView.adapter = adapter
@@ -220,6 +229,35 @@ class LibraryFragment : Fragment() {
         song.title.lowercase().contains(q) ||
                 song.artist.lowercase().contains(q) ||
                 song.album.lowercase().contains(q)
+
+    /** 按当前排序方式对歌曲列表排序（标题/艺术家/专辑 升序，时长降序） */
+    private fun sortSongs(list: List<Song>): List<Song> = when (sortMode) {
+        1 -> list.sortedBy { it.artist.lowercase() }
+        2 -> list.sortedBy { it.album.lowercase() }
+        3 -> list.sortedByDescending { it.duration }
+        else -> list.sortedBy { it.title.lowercase() }
+    }
+
+    /** 排序方式选择对话框（借鉴 Music Player GO / Auxio 的曲库排序） */
+    private fun showSortDialog() {
+        val options = listOf(
+            R.string.sort_title to 0,
+            R.string.sort_artist to 1,
+            R.string.sort_album to 2,
+            R.string.sort_duration to 3
+        )
+        val items = options.map { getString(it.first) }.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.sort_by)
+            .setSingleChoiceItems(items, sortMode) { dlg, which ->
+                sortMode = options[which].second
+                Prefs.sortModeOrdinal = sortMode
+                dlg.dismiss()
+                applyView()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
 
     private fun playFrom(index: Int, list: List<Song>) {
         if (index !in list.indices) return

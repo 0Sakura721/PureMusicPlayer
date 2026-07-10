@@ -21,6 +21,7 @@ object Prefs {
     private const val KEY_FAVORITES = "favorites"          // 收藏歌曲主键集合（Set<String>）
     private const val KEY_PLAYBACK_SPEED = "playback_speed" // 倍速：1.0 为正常
     private const val KEY_PAUSE_ON_UNPLUG = "pause_on_unplug" // 耳机/蓝牙拔出自动暂停
+    private const val KEY_SORT_MODE = "sort_mode"            // 0 标题 / 1 艺术家 / 2 专辑 / 3 时长
 
     private lateinit var sp: SharedPreferences
 
@@ -108,4 +109,9 @@ object Prefs {
     var equalizerPreset: Int
         get() = sp.getInt("equalizer_preset", 0)
         set(v) = sp.edit().putInt("equalizer_preset", v).apply()
+
+    /** 曲库排序方式：0 标题 / 1 艺术家 / 2 专辑 / 3 时长（降序） */
+    var sortModeOrdinal: Int
+        get() = sp.getInt(KEY_SORT_MODE, 0)
+        set(v) = sp.edit().putInt(KEY_SORT_MODE, v).apply()
 }
