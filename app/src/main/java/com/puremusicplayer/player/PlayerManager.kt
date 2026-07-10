@@ -1,8 +1,10 @@
 package com.puremusicplayer.player
 
+import android.content.Context
 import androidx.lifecycle.MutableLiveData
 import com.puremusicplayer.data.Song
 import com.puremusicplayer.util.Prefs
+import com.puremusicplayer.util.QueueStorage
 
 /**
  * 播放模式。
@@ -71,5 +73,27 @@ object PlayerManager {
         duration.value = 0
         lyrics.value = emptyList()
         hasLyrics.value = false
+    }
+
+    /** 保存当前播放状态到持久化存储（播放列表、当前索引、进度） */
+    fun saveQueue(context: Context) {
+        if (playlist.isNotEmpty() && currentIndex in playlist.indices) {
+            QueueStorage.save(context, playlist, currentIndex, progress.value ?: 0)
+        } else {
+            QueueStorage.clear(context)
+        }
+    }
+
+    /** 从持久化存储恢复播放状态；成功恢复时返回 true */
+    fun restoreQueue(context: Context): Boolean {
+        val state = QueueStorage.restore(context) ?: return false
+        playlist.clear()
+        playlist.addAll(state.playlist)
+        currentIndex = state.currentIndex
+        progress.value = state.currentPosition
+        if (currentIndex in playlist.indices) {
+            currentSong.value = playlist[currentIndex]
+        }
+        return true
     }
 }

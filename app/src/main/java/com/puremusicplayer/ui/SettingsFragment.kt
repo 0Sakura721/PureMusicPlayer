@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.puremusicplayer.R
 import com.puremusicplayer.databinding.FragmentSettingsBinding
+import com.puremusicplayer.player.PlayerControls
 import com.puremusicplayer.util.Prefs
 
 class SettingsFragment : Fragment() {
@@ -46,10 +47,6 @@ class SettingsFragment : Fragment() {
         "樱花粉" to Color.parseColor("#E84393"),
         "烈焰红" to Color.parseColor("#D63031")
     )
-
-    private fun dismissDialog(d: android.content.DialogInterface) {
-        (d as? android.app.Dialog)?.dismiss()
-    }
 
     /** 音乐目录选择器（SAF 文档树） */
     private val pickDirectory = registerForActivityResult(
@@ -91,6 +88,15 @@ class SettingsFragment : Fragment() {
         binding.switchLyrics.setOnCheckedChangeListener { _, v -> Prefs.lyricsAnimEnabled = v }
         binding.switchTheme.setOnCheckedChangeListener { _, v -> Prefs.dynamicThemeEnabled = v }
         binding.switchUnplug.setOnCheckedChangeListener { _, v -> Prefs.pauseOnUnplug = v }
+
+        // 均衡器
+        binding.switchEq.isChecked = Prefs.equalizerEnabled
+        binding.switchEq.setOnCheckedChangeListener { _, v ->
+            Prefs.equalizerEnabled = v
+            PlayerControls.toggleEq(requireContext(), v)
+        }
+        binding.rowEqualizer.setOnClickListener { showEqPresetDialog() }
+        refreshEqSummary()
 
         // 外观：主题模式 / 个性强调色
         binding.rowTheme.setOnClickListener { showThemeDialog() }
@@ -154,7 +160,7 @@ class SettingsFragment : Fragment() {
                 Prefs.themeMode = themeOptions[which].second
                 refreshThemeSummary()
                 applyThemeMode()
-                dismissDialog(dlg)
+                dlg.dismiss()
                 // 重新创建 Activity 让明暗主题立即生效
                 requireActivity().recreate()
             })
@@ -188,7 +194,7 @@ class SettingsFragment : Fragment() {
                 Prefs.accentColor = options[which].second
                 refreshSwatch()
                 updatePreview()
-                dismissDialog(dlg)
+                dlg.dismiss()
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -212,7 +218,7 @@ class SettingsFragment : Fragment() {
                 Prefs.visualizerStyle = visOptions[which].second
                 refreshVisStyleSummary()
                 updatePreview()
-                dismissDialog(dlg)
+                dlg.dismiss()
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -221,6 +227,29 @@ class SettingsFragment : Fragment() {
     private fun refreshVisStyleSummary() {
         val idx = Prefs.visualizerStyle.coerceIn(0, 2)
         binding.tvVisStyleSummary.text = getString(visOptions[idx].first)
+    }
+
+    // ---------- 均衡器 ----------
+    private fun showEqPresetDialog() {
+        val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
+        val items = presets.map { it.label }.toTypedArray()
+        val current = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.eq_preset)
+            .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
+                Prefs.equalizerPreset = which
+                PlayerControls.setEqPreset(requireContext(), which)
+                refreshEqSummary()
+                dlg.dismiss()
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun refreshEqSummary() {
+        val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
+        val idx = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
+        binding.tvEqSummary.text = if (Prefs.equalizerEnabled) presets[idx].label else getString(R.string.equalizer_summary)
     }
 
     // ---------- 音乐目录 ----------

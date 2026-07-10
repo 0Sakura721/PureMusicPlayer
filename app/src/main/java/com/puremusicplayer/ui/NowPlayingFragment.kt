@@ -112,6 +112,7 @@ class NowPlayingFragment : Fragment() {
         cover.btnFav.setOnClickListener { toggleFav() }
         cover.btnSleep.setOnClickListener { showSleepDialog() }
         cover.btnSpeed.setOnClickListener { cycleSpeed() }
+        cover.btnEq.setOnClickListener { showEqDialog() }
 
         cover.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -230,6 +231,8 @@ class NowPlayingFragment : Fragment() {
         cover.seekBar.thumbTintList = csl
         cover.btnPlay.setColorFilter(color)
         updateModeIcons()
+        updateFavIcon()
+        updateEqButton()
     }
 
     // ---------- 收藏 ----------
@@ -289,6 +292,33 @@ class NowPlayingFragment : Fragment() {
                 dlg.dismiss()
             }
             .show()
+    }
+
+    // ---------- 均衡器 ----------
+    private fun showEqDialog() {
+        val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
+        val items = presets.map { it.label }.toTypedArray()
+        val current = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.equalizer)
+            .setSingleChoiceItems(items, current) { dlg, which ->
+                Prefs.equalizerPreset = which
+                PlayerControls.setEqPreset(requireContext(), which)
+                updateEqButton()
+                dlg.dismiss()
+            }
+            .setNeutralButton(if (Prefs.equalizerEnabled) R.string.eq_disable else R.string.eq_enable) { dlg, _ ->
+                val on = !Prefs.equalizerEnabled
+                Prefs.equalizerEnabled = on
+                PlayerControls.toggleEq(requireContext(), on)
+                updateEqButton()
+                dlg.dismiss()
+            }
+            .show()
+    }
+
+    private fun updateEqButton() {
+        cover.btnEq.setColorFilter(if (Prefs.equalizerEnabled) accentColor else inactiveTint)
     }
 
     private fun updateSleepView(remain: Int) {
