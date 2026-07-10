@@ -18,4 +18,5 @@ captures/
 .DS_Store
 *.hprof
 
-# Keep gradle wrapper (gradlew, gradlew.bat, gradle/wrapper/*) tracked.
+# Keep gradle wrapper tracked (override the *.jar ignore above so ./gradlew runs in CI).
+!gradle/wrapper/gradle-wrapper.jar
