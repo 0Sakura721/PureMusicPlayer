@@ -1,5 +1,7 @@
 package com.puremusicplayer.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
@@ -40,6 +43,22 @@ class LibraryFragment : Fragment() {
         if (granted) loadLibrary() else showEmpty(true)
     }
 
+    private val pickDirectory = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        // 持久化权限，重启后仍能访问该目录
+        requireContext().contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+        )
+        val name = DocumentFile.fromTreeUri(requireContext(), uri)?.name ?: uri.lastPathSegment
+        Prefs.musicTreeUri = uri.toString()
+        Prefs.musicDirName = name
+        updateDirChip()
+        loadLibrary()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -65,6 +84,7 @@ class LibraryFragment : Fragment() {
         })
 
         setupSearch()
+        setupDirectory()
 
         if (Permissions.hasAudioPermission(requireContext())) loadLibrary()
         else requestPermission.launch(Permissions.audioPermissionName())
@@ -93,9 +113,34 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    // ---------- 音乐目录选择 ----------
+    private fun setupDirectory() {
+        updateDirChip()
+        binding.btnPickDir.setOnClickListener {
+            pickDirectory.launch(null)
+        }
+        binding.dirClear.setOnClickListener {
+            Prefs.musicTreeUri = null
+            Prefs.musicDirName = null
+            updateDirChip()
+            loadLibrary()
+        }
+    }
+
+    private fun updateDirChip() {
+        val name = Prefs.musicDirName
+        if (name.isNullOrEmpty()) {
+            binding.dirChip.visibility = View.GONE
+        } else {
+            binding.tvDirName.text = name
+            binding.dirChip.visibility = View.VISIBLE
+        }
+    }
+
     private fun loadLibrary() {
+        val treeUri = Prefs.musicTreeUri?.let { Uri.parse(it) }
         try {
-            allSongs = MusicRepository.loadSongs(requireContext())
+            allSongs = MusicRepository.loadSongs(requireContext(), treeUri)
         } catch (e: Exception) {
             // 扫描失败（如 Android 16 上 MediaStore 行为差异）时安全降级为空列表，而非崩溃
             allSongs = emptyList()
@@ -138,8 +183,11 @@ class LibraryFragment : Fragment() {
 
         showEmpty(listEmpty)
         if (listEmpty) {
-            binding.tvEmpty.text =
-                if (q.isEmpty()) getString(R.string.empty_library) else getString(R.string.search_empty)
+            binding.tvEmpty.text = when {
+                q.isNotEmpty() -> getString(R.string.search_empty)
+                Prefs.musicTreeUri != null -> getString(R.string.dir_empty)
+                else -> getString(R.string.empty_library)
+            }
         }
     }
 

@@ -77,6 +77,9 @@ dependencies {
     // 轻量异步加载专辑封面（来自 MediaStore URI）
     implementation("io.coil-kt:coil:2.7.0")
 
+    // 播放页封面/歌词横向分页（框架原生 ViewPager2）
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+
     // 测试
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

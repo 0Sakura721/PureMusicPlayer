@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.ContentUris
 import android.content.Intent
 import android.media.MediaMetadata
 import android.media.MediaPlayer
@@ -16,7 +15,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import android.provider.MediaStore
 import com.puremusicplayer.MainActivity
 import com.puremusicplayer.R
 import com.puremusicplayer.data.EmbeddedLyrics
@@ -122,10 +120,7 @@ class PlayerService : android.app.Service() {
         val song = list[index]
         try {
             mediaPlayer.reset()
-            val uri = ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                song.id
-            )
+            val uri = song.contentUri()
             mediaPlayer.setDataSource(applicationContext, uri)
             mediaPlayer.prepareAsync()
             PlayerManager.currentSong.value = song
@@ -204,7 +199,7 @@ class PlayerService : android.app.Service() {
         PlayerManager.hasLyrics.value = false
 
         // 优先外置 .lrc 文件
-        val lrcUri = MusicRepository.findLrcUri(this, song.data)
+        val lrcUri = MusicRepository.findLrcUri(this, song)
         if (lrcUri != null) {
             Thread {
                 try {

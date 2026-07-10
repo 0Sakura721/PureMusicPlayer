@@ -13,6 +13,8 @@ object Prefs {
     private const val KEY_LYRICS = "lyrics_anim"
     private const val KEY_DYNAMIC_THEME = "dynamic_theme"
     private const val KEY_PLAY_MODE = "play_mode"
+    private const val KEY_MUSIC_TREE_URI = "music_tree_uri"
+    private const val KEY_MUSIC_DIR_NAME = "music_dir_name"
 
     private lateinit var sp: SharedPreferences
 
@@ -37,4 +39,13 @@ object Prefs {
     var playModeOrdinal: Int
         get() = sp.getInt(KEY_PLAY_MODE, 2) // 默认 REPEAT_ALL
         set(v) = sp.edit().putInt(KEY_PLAY_MODE, v).apply()
+
+    /** 用户选定的音乐目录（SAF 文档树 Uri 字符串）；为空表示扫描整个媒体库 */
+    var musicTreeUri: String?
+        get() = sp.getString(KEY_MUSIC_TREE_URI, null)
+        set(v) = sp.edit().putString(KEY_MUSIC_TREE_URI, v).apply()
+
+    var musicDirName: String?
+        get() = sp.getString(KEY_MUSIC_DIR_NAME, null)
+        set(v) = sp.edit().putString(KEY_MUSIC_DIR_NAME, v).apply()
 }

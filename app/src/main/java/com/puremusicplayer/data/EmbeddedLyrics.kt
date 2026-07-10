@@ -1,8 +1,6 @@
 package com.puremusicplayer.data
 
-import android.content.ContentUris
 import android.content.Context
-import android.provider.MediaStore
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -24,9 +22,7 @@ object EmbeddedLyrics {
     private const val M4A_BUDGET = 24 * 1024 * 1024 // M4A 容器扫描上限，避免极端情况下读整首大文件
 
     fun read(context: Context, song: Song): String? {
-        val uri = ContentUris.withAppendedId(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, song.id
-        )
+        val uri = song.contentUri()
         return try {
             context.contentResolver.openInputStream(uri)?.use { stream ->
                 val head = ByteArray(16)

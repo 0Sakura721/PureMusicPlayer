@@ -2,23 +2,36 @@ package com.puremusicplayer.data
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.documentfile.provider.DocumentFile
+import java.io.File
 
 /**
  * 本地曲库数据源。
- * 通过 MediaStore 扫描设备上的音乐文件，并支持按“同名 .lrc”匹配歌词文件。
+ * 默认通过 MediaStore 扫描设备上的音乐文件；若用户指定了音乐目录，
+ * 则通过 SAF 文档树遍历该目录（含子目录）收集音频，并用 MediaMetadataRetriever 提取元数据。
+ * 同时支持按“同名 .lrc”匹配歌词文件（路径模式与文档树模式均适配）。
  *
  * 设计取向：只读取本地媒体库，不做任何上传/网络请求。
  */
 object MusicRepository {
 
+    private val AUDIO_EXT = setOf("mp3", "flac", "wav", "ogg", "m4a", "aac", "wma", "opus", "ape", "wv")
+
     /**
-     * 扫描外部存储中的音乐。
-     * 过滤条件：IS_MUSIC=1 且时长 > 30s，剔除铃声/闹铃等短音频。
+     * 扫描音乐。
+     * @param treeUri 若非空，则只扫描该文档树目录；否则扫描整个 MediaStore。
      */
-    fun loadSongs(context: Context): List<Song> {
+    fun loadSongs(context: Context, treeUri: Uri? = null): List<Song> {
+        return if (treeUri != null) loadFromTree(context, treeUri)
+        else loadFromMediaStore(context)
+    }
+
+    // ---------- MediaStore 全量扫描 ----------
+    private fun loadFromMediaStore(context: Context): List<Song> {
         val songs = mutableListOf<Song>()
         val resolver: ContentResolver = context.contentResolver
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
@@ -72,13 +85,111 @@ object MusicRepository {
         return songs
     }
 
+    // ---------- SAF 文档树目录扫描 ----------
+    private fun loadFromTree(context: Context, treeUri: Uri): List<Song> {
+        val songs = mutableListOf<Song>()
+        try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return songs
+            collectAudio(context, root, songs)
+        } catch (_: Exception) {
+            // 目录不可读时安全降级为空
+        }
+        songs.sortBy { it.title.lowercase() }
+        return songs
+    }
+
+    private fun collectAudio(context: Context, dir: DocumentFile, out: MutableList<Song>) {
+        val children = dir.listFiles() ?: return
+        for (f in children) {
+            if (f.isDirectory) collectAudio(context, f, out)
+            else if (f.isFile) {
+                val type = f.type ?: ""
+                val name = f.name ?: ""
+                if (isAudio(type, name)) buildSongFromDoc(context, f)?.let { out.add(it) }
+            }
+        }
+    }
+
+    private fun isAudio(type: String, name: String): Boolean {
+        if (type.startsWith("audio/", ignoreCase = true)) return true
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return ext in AUDIO_EXT
+    }
+
+    private fun buildSongFromDoc(context: Context, file: DocumentFile): Song? {
+        val name = file.name ?: return null
+        val baseName = name.substringBeforeLast('.')
+        return try {
+            val retr = MediaMetadataRetriever()
+            retr.setDataSource(context, file.uri)
+            val title = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                ?: baseName.ifEmpty { name }
+            val artist = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?: "未知艺术家"
+            val album = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                ?: "未知专辑"
+            val durStr = retr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val duration = durStr?.toLongOrNull() ?: 0L
+            val pic = retr.embeddedPicture
+            retr.release()
+            val albumArt = if (pic != null) saveArtToCache(context, file.uri, pic) else null
+            Song(
+                id = 0,
+                title = title,
+                artist = artist,
+                album = album,
+                albumId = 0,
+                duration = duration,
+                data = "",
+                size = file.length(),
+                uri = file.uri,
+                albumArt = albumArt
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** 把内嵌封面写入应用私有缓存，返回文件 Uri（避免重复解码，跨刷新复用） */
+    private fun saveArtToCache(context: Context, keyUri: Uri, bytes: ByteArray): Uri? {
+        return try {
+            val dir = File(context.cacheDir, "art")
+            if (!dir.exists()) dir.mkdirs()
+            val h = keyUri.toString().hashCode()
+            val name = "art_${if (h < 0) -h else h}.jpg"
+            val file = File(dir, name)
+            file.writeBytes(bytes)
+            Uri.fromFile(file)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /**
-     * 查找与某首歌曲同目录、同名的歌词文件（.lrc / .LRC / .txt）。
-     * 优先用 MediaStore.Files 查询（适配 Android 10+ 分区存储），
-     * 旧版本或查询失败时回退到文件路径。
+     * 查找与某首歌曲同名的歌词文件（.lrc / .LRC / .txt）。
+     * 优先：文档树模式下在同级目录查找；MediaStore 模式下用 Files 表/文件路径查找。
      * 返回可被 ContentResolver 打开的 Uri；找不到返回 null。
      */
-    fun findLrcUri(context: Context, audioData: String): Uri? {
+    fun findLrcUri(context: Context, song: Song): Uri? {
+        // 文档树模式：在同目录查找同名 .lrc
+        if (song.uri != null) {
+            try {
+                val doc = DocumentFile.fromSingleUri(context, song.uri) ?: return null
+                val parent = doc.parentFile ?: return null
+                val base = (doc.name ?: "").substringBeforeLast('.')
+                if (base.isNotEmpty()) {
+                    val target = "$base.lrc"
+                    parent.listFiles()?.forEach {
+                        if (it.name.equals(target, ignoreCase = true)) return it.uri
+                    }
+                }
+            } catch (_: Exception) {
+                // 忽略，回退到路径模式
+            }
+        }
+
+        val audioData = song.data
+        if (audioData.isEmpty()) return null
         val fileName = audioData.substringAfterLast('/')
         val baseName = fileName.substringBeforeLast('.')
         if (baseName.isEmpty()) return null
@@ -111,7 +222,7 @@ object MusicRepository {
 
         // 回退：直接按文件路径读取
         for (ext in listOf(".lrc", ".LRC", ".txt")) {
-            val f = java.io.File(parent, baseName + ext)
+            val f = File(parent, baseName + ext)
             if (f.exists()) return Uri.fromFile(f)
         }
         return null

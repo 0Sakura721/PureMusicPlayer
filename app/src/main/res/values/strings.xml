@@ -16,6 +16,17 @@
     <string name="clear_search">清除搜索</string>
     <string name="search_empty">没有匹配的结果</string>
 
+    <!-- 目录选择 -->
+    <string name="pick_directory">选择音乐目录</string>
+    <string name="clear_directory">清除目录限制</string>
+    <string name="dir_empty">该目录内没有找到音乐文件</string>
+
+    <!-- 播放页 -->
+    <string name="np_page_cover">封面</string>
+    <string name="np_page_lyrics">歌词</string>
+    <string name="file_info_loading">解析中…</string>
+    <string name="open_now_playing">打开播放页</string>
+
     <!-- 播放控制 -->
     <string name="action_play">播放</string>
     <string name="action_pause">暂停</string>

@@ -1,6 +1,7 @@
 package com.puremusicplayer
 
 import android.os.Bundle
+import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -8,7 +9,12 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
+import coil.load
+import com.puremusicplayer.R
 import com.puremusicplayer.databinding.ActivityMainBinding
+import com.puremusicplayer.player.PlayerControls
+import com.puremusicplayer.player.PlayerManager
 import com.puremusicplayer.ui.LibraryFragment
 import com.puremusicplayer.ui.NowPlayingFragment
 import com.puremusicplayer.ui.SettingsFragment
@@ -48,6 +54,33 @@ class MainActivity : AppCompatActivity() {
             true
         }
         updateBackCallback()
+        setupMiniPlayer()
+    }
+
+    /** 主页常驻迷你播放器：有歌曲时显示，点击展开播放页，含播放/下一首控制 */
+    private fun setupMiniPlayer() {
+        val mini = binding.miniPlayer
+        mini.root.setOnClickListener { switchToNowPlaying() }
+        mini.miniPlay.setOnClickListener { PlayerControls.toggle(this) }
+        mini.miniNext.setOnClickListener { PlayerControls.next(this) }
+
+        PlayerManager.currentSong.observe(this, Observer { song ->
+            if (song == null) {
+                mini.root.visibility = View.GONE
+                return@Observer
+            }
+            mini.root.visibility = View.VISIBLE
+            mini.miniTitle.text = song.title
+            mini.miniArtist.text = song.artist
+            if (song.albumArtUri != null) mini.miniArt.load(song.albumArtUri)
+            else mini.miniArt.setImageDrawable(null)
+        })
+
+        PlayerManager.isPlaying.observe(this) { playing ->
+            mini.miniPlay.setImageResource(
+                if (playing) R.drawable.ic_pause else R.drawable.ic_play
+            )
+        }
     }
 
     /** 供 LibraryFragment 在选曲后跳转到“正在播放” */
