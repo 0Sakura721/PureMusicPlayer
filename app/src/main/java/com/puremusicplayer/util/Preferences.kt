@@ -98,14 +98,4 @@ object Prefs {
     var pauseOnUnplug: Boolean
         get() = sp.getBoolean(KEY_PAUSE_ON_UNPLUG, true)
         set(v) = sp.edit().putBoolean(KEY_PAUSE_ON_UNPLUG, v).apply()
-
-    /** 均衡器开关 */
-    var equalizerEnabled: Boolean
-        get() = sp.getBoolean("equalizer_enabled", false)
-        set(v) = sp.edit().putBoolean("equalizer_enabled", v).apply()
-
-    /** 均衡器预设索引（对应 EqualizerHelper.Preset 序号） */
-    var equalizerPreset: Int
-        get() = sp.getInt("equalizer_preset", 0)
-        set(v) = sp.edit().putInt("equalizer_preset", v).apply()
 }

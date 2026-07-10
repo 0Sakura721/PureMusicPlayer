@@ -18,16 +18,12 @@ object PlayerControls {
     const val ACTION_SET_MODE = "com.puremusicplayer.action.SET_MODE"
     const val ACTION_SET_SPEED = "com.puremusicplayer.action.SET_SPEED"
     const val ACTION_SLEEP = "com.puremusicplayer.action.SLEEP"
-    const val ACTION_SET_EQ = "com.puremusicplayer.action.SET_EQ"
-    const val ACTION_SET_EQ_PRESET = "com.puremusicplayer.action.SET_EQ_PRESET"
 
     const val EXTRA_POSITION = "extra_position"
     const val EXTRA_MODE = "extra_mode"
     const val EXTRA_SPEED = "extra_speed"
     const val EXTRA_SLEEP_MIN = "extra_sleep_min"       // 分钟；<=0 表示取消
     const val EXTRA_SLEEP_FINISH = "extra_sleep_finish" // 1 = 播完当前歌曲后停止
-    const val EXTRA_EQ_ENABLED = "extra_eq_enabled"     // 0/1 toggle
-    const val EXTRA_EQ_PRESET = "extra_eq_preset"       // presets index
 
     /** 播放指定曲目：UI 需先设置 PlayerManager.playlist 与 currentIndex */
     fun play(context: Context) = send(context, ACTION_PLAY, foreground = true)
@@ -75,22 +71,6 @@ object PlayerControls {
             .setAction(ACTION_SLEEP)
             .putExtra(EXTRA_SLEEP_MIN, minutes)
             .putExtra(EXTRA_SLEEP_FINISH, if (finishCurrentTrack) 1 else 0)
-        context.startService(i)
-    }
-
-    /** 切换均衡器开关 */
-    fun toggleEq(context: Context, enabled: Boolean) {
-        val i = Intent(context, PlayerService::class.java)
-            .setAction(ACTION_SET_EQ)
-            .putExtra(EXTRA_EQ_ENABLED, if (enabled) 1 else 0)
-        context.startService(i)
-    }
-
-    /** 设置均衡器预设 */
-    fun setEqPreset(context: Context, presetIndex: Int) {
-        val i = Intent(context, PlayerService::class.java)
-            .setAction(ACTION_SET_EQ_PRESET)
-            .putExtra(EXTRA_EQ_PRESET, presetIndex)
         context.startService(i)
     }
 

@@ -46,7 +46,6 @@
     <string name="queue_empty">队列为空</string>
 
     <!-- 状态/空态 -->
-    <string name="scanning">正在扫描曲库…</string>
     <string name="empty_library">没有找到本地音乐\n请确保已授权读取音频，或把音乐放到设备存储中</string>
     <string name="empty_favorites">还没有收藏的歌曲\n在播放页或列表中点击 ♥ 即可收藏</string>
     <string name="permission_rationale">PureMusic 需要读取音频权限才能扫描你设备上的本地音乐。</string>
@@ -104,13 +103,6 @@
     <!-- 设置 · 音乐目录 -->
     <string name="music_directory">音乐目录</string>
     <string name="music_directory_summary">限定仅扫描所选文件夹</string>
-
-    <!-- 均衡器 -->
-    <string name="equalizer">均衡器</string>
-    <string name="equalizer_summary">调整音频均衡器设置</string>
-    <string name="eq_preset">均衡器预设</string>
-    <string name="eq_enable">开启 EQ</string>
-    <string name="eq_disable">关闭 EQ</string>
 
     <!-- 通知 -->
     <string name="channel_name">媒体播放</string>
