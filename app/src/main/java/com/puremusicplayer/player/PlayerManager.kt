@@ -38,6 +38,14 @@ object PlayerManager {
      */
     val sleepRemaining = MutableLiveData(0)
 
+    /**
+     * 续播位置（毫秒）：由 restoreQueue 写入，仅对恢复出的同一首歌生效一次。
+     * playAt 在准备完成时据此 seek，随后清零，避免误续播到其它歌曲。
+     */
+    var pendingResumePosition: Int = 0
+    /** 续播对应的歌曲主键（Song.favKey）；为空表示无需续播 */
+    var resumeSongKey: String? = null
+
     /** 可视化数据槽：由 PlayerService 推送 FFT，VisualizerView 注册接收 */
     var fftSink: ((ByteArray) -> Unit)? = null
     /** 可视化数据槽：波形原始数据（供波形样式使用） */
@@ -73,6 +81,8 @@ object PlayerManager {
         duration.value = 0
         lyrics.value = emptyList()
         hasLyrics.value = false
+        pendingResumePosition = 0
+        resumeSongKey = null
     }
 
     /** 保存当前播放状态到持久化存储（播放列表、当前索引、进度） */
@@ -93,6 +103,9 @@ object PlayerManager {
         progress.value = state.currentPosition
         if (currentIndex in playlist.indices) {
             currentSong.value = playlist[currentIndex]
+            // 记录续播信息：仅当恢复出的这首歌被重新播放时才跳到上次位置
+            resumeSongKey = playlist[currentIndex].favKey()
+            pendingResumePosition = state.currentPosition
         }
         return true
     }

@@ -46,6 +46,8 @@ class PlayerService : android.app.Service() {
     private var notificationManager: NotificationManager? = null
     private val handler = Handler(Looper.getMainLooper())
     private var progressTick = 0
+    /** 本次播放需要续播到的位置（毫秒）；0 表示从头播放 */
+    private var resumePosition = 0
 
     private var foregroundStarted = false
 
@@ -74,16 +76,23 @@ class PlayerService : android.app.Service() {
         mediaPlayer = MediaPlayer().apply {
             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
             setOnPreparedListener { mp ->
-                // 续播：回到保存的播放位置
-                val savedPos = PlayerManager.progress.value ?: 0
+                // 续播：回到上次保存的播放位置（由 restoreQueue 经 pendingResumePosition 传入）
+                val savedPos = resumePosition
+                resumePosition = 0
                 if (savedPos > 0 && savedPos < mp.duration) {
                     mp.seekTo(savedPos)
                     PlayerManager.progress.value = savedPos
                 }
                 mp.start()
                 PlayerManager.isPlaying.value = true
-                PlayerManager.isPlaying.value = true
                 PlayerManager.duration.value = mp.duration
+                // 若服务创建时音频会话尚未就绪导致均衡器未初始化，此时会话已有效，补初始化
+                if (Prefs.equalizerEnabled && !EqualizerHelper.isInitialized()) {
+                    EqualizerHelper.init(mp.audioSessionId)
+                    EqualizerHelper.setEnabled(true)
+                    val presets = EqualizerHelper.Preset.values()
+                    EqualizerHelper.applyPreset(presets[Prefs.equalizerPreset.coerceIn(0, presets.size - 1)])
+                }
                 applyPlaybackSpeed(mp)
                 updatePlaybackState()
                 updateNotification()
@@ -108,6 +117,13 @@ class PlayerService : android.app.Service() {
                 if (PlayerManager.currentIndex < 0 && PlayerManager.playlist.isNotEmpty()) {
                     PlayerManager.currentIndex = 0
                 }
+                // 仅当本次播放的歌曲与「恢复出的歌曲」一致时，才续播到上次位置
+                val song = PlayerManager.playlist.getOrNull(PlayerManager.currentIndex)
+                resumePosition = if (song != null && song.favKey() == PlayerManager.resumeSongKey) {
+                    PlayerManager.pendingResumePosition
+                } else 0
+                PlayerManager.resumeSongKey = null
+                PlayerManager.pendingResumePosition = 0
                 playAt(PlayerManager.currentIndex, true)
             }
             PlayerControls.ACTION_PAUSE -> pause()

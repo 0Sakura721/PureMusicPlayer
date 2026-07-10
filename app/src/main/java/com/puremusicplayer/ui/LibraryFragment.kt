@@ -45,6 +45,9 @@ class LibraryFragment : Fragment() {
     private var lastLoadedTreeUri: String? = "<<init>>"
     /** 防止重复扫描 */
     private var isScanning = false
+    /** 当前展示的歌曲/收藏列表缓存，供「滚动到正在播放」定位使用 */
+    private var shownSongsCache = emptyList<Song>()
+    private var shownFavsCache = emptyList<Song>()
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -87,6 +90,14 @@ class LibraryFragment : Fragment() {
         PlayerManager.favorites.observe(viewLifecycleOwner) { set ->
             favoritesList = allSongs.filter { set.contains(it.favKey()) }
             if (currentTab == 3) applyView()
+        }
+
+        // 借鉴 Auxio：当前播放歌曲变化时，刷新「正在播放」高亮并滚动到该曲
+        PlayerManager.currentSong.observe(viewLifecycleOwner) {
+            if (currentTab == 0 || currentTab == 3) {
+                applyView()
+                scrollToCurrent()
+            }
         }
 
         if (Permissions.hasAudioPermission(requireContext())) loadLibrary()
@@ -153,10 +164,10 @@ class LibraryFragment : Fragment() {
     private fun applySongs(songs: List<Song>) {
         allSongs = songs
         favoritesList = allSongs.filter { PlayerManager.favorites.value?.contains(it.favKey()) == true }
-        PlayerManager.playlist.clear()
-        PlayerManager.playlist.addAll(allSongs)
+        // 注意：此处不再覆盖 PlayerManager.playlist。
+        // 播放队列由「用户点歌」(playFrom/playGroup) 与「续播恢复」(restoreQueue) 独立维护，
+        // 否则会把恢复出来的自定义队列 / 续播位置悄悄覆盖掉，导致续播落错歌曲。
         PlayerManager.playMode = PlayMode.values().getOrElse(Prefs.playModeOrdinal) { PlayMode.REPEAT_ALL }
-        PlayerManager.saveQueue(requireContext())
         showLoading(false)
 
         albums = allSongs.groupBy { it.album }
@@ -195,16 +206,24 @@ class LibraryFragment : Fragment() {
 
         val shownSongs = sortSongs(filteredSongs)
         val shownFavs = sortSongs(filteredFavs)
+        // 缓存当前展示列表，供「滚动到正在播放」使用
+        shownSongsCache = shownSongs
+        shownFavsCache = shownFavs
+
+        // 借鉴 Auxio：在歌曲 / 收藏列表中高亮「正在播放」的那一首
+        val curKey = PlayerManager.current()?.favKey()
+        val curInSongs = shownSongs.indexOfFirst { it.favKey() == curKey }
+        val curInFavs = shownFavs.indexOfFirst { it.favKey() == curKey }
 
         val (adapter, listEmpty) = when (currentTab) {
-            0 -> SongAdapter(shownSongs,
+            0 -> SongAdapter(shownSongs, curInSongs,
                 onFavClick = { pos ->
                     shownSongs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
                     binding.recyclerView.adapter?.notifyItemChanged(pos)
                 }) { playFrom(it, shownSongs) } to shownSongs.isEmpty()
             1 -> GroupAdapter(filteredAlbums) { playGroup(it) } to filteredAlbums.isEmpty()
             2 -> GroupAdapter(filteredArtists) { playGroup(it) } to filteredArtists.isEmpty()
-            3 -> SongAdapter(shownFavs,
+            3 -> SongAdapter(shownFavs, curInFavs,
                 onFavClick = { pos ->
                     shownFavs.getOrNull(pos)?.let { PlayerManager.toggleFav(it.favKey()) }
                     favoritesList = allSongs.filter { PlayerManager.favorites.value?.contains(it.favKey()) == true }
@@ -223,6 +242,20 @@ class LibraryFragment : Fragment() {
                 else -> getString(R.string.empty_library)
             }
         }
+    }
+
+    /** 当前播放歌曲变化时：刷新高亮，并在其不可见时自动滚动到（借鉴 Auxio 的「正在播放」指示） */
+    private fun scrollToCurrent() {
+        if (currentTab != 0 && currentTab != 3) return
+        val curKey = PlayerManager.current()?.favKey() ?: return
+        val list = if (currentTab == 0) shownSongsCache else shownFavsCache
+        val pos = list.indexOfFirst { it.favKey() == curKey }
+        if (pos < 0) return
+        val lm = binding.recyclerView.layoutManager as? LinearLayoutManager
+            ?: return
+        val first = lm.findFirstVisibleItemPosition()
+        val last = lm.findLastVisibleItemPosition()
+        if (pos !in first..last) binding.recyclerView.smoothScrollToPosition(pos)
     }
 
     private fun matchesSong(song: Song, q: String): Boolean =
