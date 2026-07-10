@@ -31,6 +31,7 @@ class NowPlayingFragment : Fragment() {
     private var seeking = false
     private var accentColor = Color.parseColor("#6C5CE7")
     private val inactiveTint = Color.parseColor("#777788")
+    private var queueSheet: QueueBottomSheet? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -51,6 +52,8 @@ class NowPlayingFragment : Fragment() {
 
     override fun onDestroyView() {
         binding.visualizerView.unregister()
+        queueSheet?.dismiss()
+        queueSheet = null
         super.onDestroyView()
         _binding = null
     }
@@ -72,6 +75,7 @@ class NowPlayingFragment : Fragment() {
         binding.btnPrev.setOnClickListener { PlayerControls.prev(requireContext()) }
         binding.btnShuffle.setOnClickListener { cycleShuffle() }
         binding.btnRepeat.setOnClickListener { cycleRepeat() }
+        binding.btnQueue.setOnClickListener { openQueue() }
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -94,6 +98,8 @@ class NowPlayingFragment : Fragment() {
             if (Prefs.dynamicThemeEnabled) applyDynamicTheme(song.albumArtUri)
             else setAccent(accentColor)
             updateModeIcons()
+            // 队列弹层打开时同步高亮当前曲目
+            if (queueSheet?.isAdded == true) queueSheet?.refresh()
         })
 
         PlayerManager.isPlaying.observe(viewLifecycleOwner) { playing ->
@@ -122,6 +128,13 @@ class NowPlayingFragment : Fragment() {
             binding.tvNoLyrics.visibility = if (has) View.GONE else View.VISIBLE
             binding.lyricsView.visibility = if (has) View.VISIBLE else View.GONE
         }
+    }
+
+    // ---------- 播放队列 ----------
+    private fun openQueue() {
+        val sheet = QueueBottomSheet()
+        queueSheet = sheet
+        sheet.show(childFragmentManager, "queue")
     }
 
     // ---------- 动态主题（folia 风：按封面取色） ----------

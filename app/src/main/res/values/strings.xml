@@ -22,6 +22,8 @@
     <string name="action_repeat_off">顺序播放</string>
     <string name="action_lyrics">歌词</string>
     <string name="action_visualizer">可视化</string>
+    <string name="action_queue">播放队列</string>
+    <string name="queue_empty">队列为空</string>
 
     <!-- 状态/空态 -->
     <string name="empty_library">没有找到本地音乐\n请确保已授权读取音频，或把音乐放到设备存储中</string>

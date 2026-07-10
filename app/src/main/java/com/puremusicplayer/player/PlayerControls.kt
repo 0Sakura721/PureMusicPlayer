@@ -23,6 +23,12 @@ object PlayerControls {
     /** 播放指定曲目：UI 需先设置 PlayerManager.playlist 与 currentIndex */
     fun play(context: Context) = send(context, ACTION_PLAY, foreground = true)
 
+    /** 跳转到播放队列中的指定位置（用于播放队列点击切歌） */
+    fun jump(context: Context, index: Int) {
+        PlayerManager.currentIndex = index
+        send(context, ACTION_PLAY, foreground = true)
+    }
+
     fun pause(context: Context) = send(context, ACTION_PAUSE)
     fun toggle(context: Context) = send(context, ACTION_PLAY_PAUSE)
     fun next(context: Context) = send(context, ACTION_NEXT)
