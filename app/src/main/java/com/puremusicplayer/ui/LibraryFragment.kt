@@ -86,6 +86,9 @@ class LibraryFragment : Fragment() {
         sortMode = Prefs.sortModeOrdinal
         binding.sortButton.setOnClickListener { showSortDialog() }
 
+        // 借鉴 Auxio：顶栏“随机”按钮，一键打乱全部歌曲并开始播放
+        binding.shuffleButton.setOnClickListener { shuffleAll() }
+
         // 收藏集合变化时刷新（迷你栏/播放页也可能修改收藏）
         PlayerManager.favorites.observe(viewLifecycleOwner) { set ->
             favoritesList = allSongs.filter { set.contains(it.favKey()) }
@@ -297,6 +300,19 @@ class LibraryFragment : Fragment() {
         PlayerManager.playlist.clear()
         PlayerManager.playlist.addAll(list)
         PlayerManager.currentIndex = index
+        PlayerControls.play(requireContext())
+        (activity as? MainActivity)?.switchToNowPlaying()
+    }
+
+    /** 借鉴 Auxio：打乱全部歌曲（保留当前目录/筛选范围）并开始播放 */
+    private fun shuffleAll() {
+        if (allSongs.isEmpty()) return
+        val shuffled = allSongs.shuffled()
+        PlayerManager.playlist.clear()
+        PlayerManager.playlist.addAll(shuffled)
+        PlayerManager.currentIndex = 0
+        PlayerManager.playMode = PlayMode.REPEAT_ALL
+        Prefs.playModeOrdinal = PlayMode.REPEAT_ALL.ordinal
         PlayerControls.play(requireContext())
         (activity as? MainActivity)?.switchToNowPlaying()
     }

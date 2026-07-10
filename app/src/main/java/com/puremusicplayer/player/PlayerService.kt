@@ -48,6 +48,11 @@ class PlayerService : android.app.Service() {
     private var progressTick = 0
     /** 本次播放需要续播到的位置（毫秒）；0 表示从头播放 */
     private var resumePosition = 0
+    /** MediaPlayer 是否已准备就绪（prepareAsync 完成）。
+     *  未准备时不可直接 start()/seekTo()，否则抛 IllegalStateException。
+     *  这是“失败 CL”续播崩溃的根因：服务刚创建、歌曲已由 restoreQueue 恢复，
+     *  但 MediaPlayer 还没 prepare，此时点播放会直接 start() 而崩溃。 */
+    private var prepared = false
 
     private var foregroundStarted = false
 
@@ -76,6 +81,8 @@ class PlayerService : android.app.Service() {
         mediaPlayer = MediaPlayer().apply {
             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
             setOnPreparedListener { mp ->
+                // 标记已准备就绪：此后才可安全地 start() / seekTo()
+                prepared = true
                 // 续播：回到上次保存的播放位置（由 restoreQueue 经 pendingResumePosition 传入）
                 val savedPos = resumePosition
                 resumePosition = 0
@@ -86,13 +93,15 @@ class PlayerService : android.app.Service() {
                 mp.start()
                 PlayerManager.isPlaying.value = true
                 PlayerManager.duration.value = mp.duration
-                // 若服务创建时音频会话尚未就绪导致均衡器未初始化，此时会话已有效，补初始化
+                // 若服务创建时音频会话尚未就绪导致均衡器/可视化未初始化，此时会话已有效，补初始化
                 if (Prefs.equalizerEnabled && !EqualizerHelper.isInitialized()) {
                     EqualizerHelper.init(mp.audioSessionId)
                     EqualizerHelper.setEnabled(true)
                     val presets = EqualizerHelper.Preset.values()
                     EqualizerHelper.applyPreset(presets[Prefs.equalizerPreset.coerceIn(0, presets.size - 1)])
                 }
+                // 与均衡器兜底对称：会话此刻一定有效，若可视化尚未建立则补建，保证首曲可视化可用
+                if (visualizer == null) ensureVisualizer(mp.audioSessionId)
                 applyPlaybackSpeed(mp)
                 updatePlaybackState()
                 updateNotification()
@@ -117,19 +126,17 @@ class PlayerService : android.app.Service() {
                 if (PlayerManager.currentIndex < 0 && PlayerManager.playlist.isNotEmpty()) {
                     PlayerManager.currentIndex = 0
                 }
-                // 仅当本次播放的歌曲与「恢复出的歌曲」一致时，才续播到上次位置
-                val song = PlayerManager.playlist.getOrNull(PlayerManager.currentIndex)
-                resumePosition = if (song != null && song.favKey() == PlayerManager.resumeSongKey) {
-                    PlayerManager.pendingResumePosition
-                } else 0
-                PlayerManager.resumeSongKey = null
-                PlayerManager.pendingResumePosition = 0
+                // 显式播放当前选择：始终（重新）准备并播放，续播位置一并应用
+                prepareResumePosition()
                 playAt(PlayerManager.currentIndex, true)
             }
             PlayerControls.ACTION_PAUSE -> pause()
-            PlayerControls.ACTION_PLAY_PAUSE -> togglePlayPause()
-            PlayerControls.ACTION_NEXT -> playAt(step(true), true)
-            PlayerControls.ACTION_PREV -> playAt(step(false), true)
+            PlayerControls.ACTION_PLAY_PAUSE -> {
+                if (mediaPlayer.isPlaying) pause()
+                else { prepareResumePosition(); playOrResume() }
+            }
+            PlayerControls.ACTION_NEXT -> { resumePosition = 0; playAt(step(true), true) }
+            PlayerControls.ACTION_PREV -> { resumePosition = 0; playAt(step(false), true) }
             PlayerControls.ACTION_SEEK ->
                 seekTo(intent.getIntExtra(PlayerControls.EXTRA_POSITION, 0))
             PlayerControls.ACTION_SET_MODE -> {
@@ -181,6 +188,7 @@ class PlayerService : android.app.Service() {
         if (index !in list.indices) return
         PlayerManager.currentIndex = index
         PlayerManager.saveQueue(this)
+        prepared = false   // 即将重新准备，标记为未就绪
         val song = list[index]
         try {
             mediaPlayer.reset()
@@ -198,32 +206,57 @@ class PlayerService : android.app.Service() {
     }
 
     private fun resume() {
-        if (PlayerManager.current() == null && PlayerManager.playlist.isNotEmpty()) {
-            playAt(0, true); return
+        prepareResumePosition()
+        playOrResume()
+    }
+
+    private fun pause() {
+        if (!prepared || !mediaPlayer.isPlaying) return
+        mediaPlayer.pause()
+        PlayerManager.isPlaying.value = false
+        PlayerManager.saveQueue(this)
+        updatePlaybackState()
+        updateNotification()
+    }
+
+    /**
+     * 计算续播位置：仅当「恢复出的歌曲」与当前曲目一致时，
+     * 才把待续播位置写入服务级 resumePosition；随后清空 PlayerManager 的待续播信息，
+     * 避免误续播到其它歌曲。与 PR#1 修复的「续播位置被清零」对称。
+     */
+    private fun prepareResumePosition() {
+        val song = PlayerManager.playlist.getOrNull(PlayerManager.currentIndex)
+        resumePosition = if (song != null && song.favKey() == PlayerManager.resumeSongKey) {
+            PlayerManager.pendingResumePosition
+        } else 0
+        PlayerManager.resumeSongKey = null
+        PlayerManager.pendingResumePosition = 0
+    }
+
+    /**
+     * 播放或恢复当前曲目：
+     *  - 已准备就绪且处于暂停态 → 直接 start（瞬时恢复，含暂停位置）
+     *  - 未准备就绪（如刚创建服务、续播场景，MediaPlayer 尚未 prepare）→ 走 playAt 准备
+     *  这避免了「失败 CL」中对未准备播放器调用 start() 的崩溃。
+     */
+    private fun playOrResume() {
+        // 无有效曲目时回退到列表首曲
+        if (PlayerManager.currentIndex !in PlayerManager.playlist.indices) {
+            if (PlayerManager.playlist.isNotEmpty()) PlayerManager.currentIndex = 0
+            else return
         }
-        if (!mediaPlayer.isPlaying) {
+        if (prepared && ::mediaPlayer.isInitialized && !mediaPlayer.isPlaying) {
             mediaPlayer.start()
             PlayerManager.isPlaying.value = true
             updatePlaybackState()
             updateNotification()
+        } else if (!prepared) {
+            playAt(PlayerManager.currentIndex, true)
         }
-    }
-
-    private fun pause() {
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.pause()
-            PlayerManager.isPlaying.value = false
-            PlayerManager.saveQueue(this)
-            updatePlaybackState()
-            updateNotification()
-        }
-    }
-
-    private fun togglePlayPause() {
-        if (mediaPlayer.isPlaying) pause() else resume()
     }
 
     private fun seekTo(posMs: Int) {
+        if (!prepared) return
         if (posMs in 0..mediaPlayer.duration) {
             mediaPlayer.seekTo(posMs)
             PlayerManager.progress.value = posMs
@@ -248,6 +281,7 @@ class PlayerService : android.app.Service() {
                     PlayerManager.sleepRemaining.value = 0
                     pause()
                 } else {
+                    resumePosition = 0   // 下一首从头播放，避免误带续播位置
                     playAt(step(true), true)
                 }
             }
@@ -418,26 +452,36 @@ class PlayerService : android.app.Service() {
                 val idx = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
                 EqualizerHelper.applyPreset(presets[idx])
             }
+            ensureVisualizer(sessionId)
+        } catch (_: Exception) {
+            visualizer = null
+        }
+    }
+
+    /** 为指定有效音频会话创建可视化（若尚未创建）；会话无效或已创建则跳过 */
+    private fun ensureVisualizer(sessionId: Int) {
+        if (sessionId <= 0 || visualizer != null) return
+        try {
             visualizer = Visualizer(sessionId).apply {
                 captureSize = Visualizer.getCaptureSizeRange()[1]
                 setDataCaptureListener(
                     object : Visualizer.OnDataCaptureListener {
-                override fun onWaveFormDataCapture(
-                    v: Visualizer?, waveform: ByteArray?, s: Int
-                ) {
-                    waveform?.let { PlayerManager.dispatchWave(it) }
-                }
+                        override fun onWaveFormDataCapture(
+                            v: Visualizer?, waveform: ByteArray?, s: Int
+                        ) {
+                            waveform?.let { PlayerManager.dispatchWave(it) }
+                        }
 
-                override fun onFftDataCapture(
-                    v: Visualizer?, fft: ByteArray?, s: Int
-                ) {
-                    fft?.let { PlayerManager.dispatchFft(it) }
-                }
-            },
-            Visualizer.getMaxCaptureRate(),
-            true,
-            true
-        )
+                        override fun onFftDataCapture(
+                            v: Visualizer?, fft: ByteArray?, s: Int
+                        ) {
+                            fft?.let { PlayerManager.dispatchFft(it) }
+                        }
+                    },
+                    Visualizer.getMaxCaptureRate(),
+                    true,
+                    true
+                )
                 enabled = true
             }
         } catch (_: Exception) {
@@ -603,12 +647,18 @@ class PlayerService : android.app.Service() {
 
     // ---------- 进度循环 ----------
     private var progressRunnable: Runnable? = null
+    private var saveTick = 0   // 进度持久化计数：每约 15s 写一次，保证续播位置不过期
     private fun startProgressLoop() {
         progressRunnable = object : Runnable {
             override fun run() {
                 if (::mediaPlayer.isInitialized && mediaPlayer.isPlaying) {
                     PlayerManager.progress.value = mediaPlayer.currentPosition
                     if (progressTick++ % 2 == 0) updatePlaybackState()
+                    // 周期持久化播放进度（约 15s），即便被系统强杀也能恢复到近似位置
+                    if (saveTick++ >= 30) {
+                        saveTick = 0
+                        PlayerManager.saveQueue(this@PlayerService)
+                    }
                 }
                 handler.postDelayed(this, 500)
             }
