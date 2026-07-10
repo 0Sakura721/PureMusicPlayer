@@ -28,11 +28,16 @@ object PlayerManager {
 
     /** 可视化数据槽：由 PlayerService 推送 FFT，VisualizerView 注册接收 */
     var fftSink: ((ByteArray) -> Unit)? = null
+    /** 可视化数据槽：波形原始数据（供波形样式使用） */
+    var waveSink: ((ByteArray) -> Unit)? = null
 
     fun current(): Song? = if (currentIndex in playlist.indices) playlist[currentIndex] else null
 
     /** 供 PlayerService 把音频 FFT 数据推送给当前注册的视图 */
     fun dispatchFft(data: ByteArray) = fftSink?.invoke(data)
+
+    /** 供 PlayerService 把波形数据推送给当前注册的视图 */
+    fun dispatchWave(data: ByteArray) = waveSink?.invoke(data)
 
     fun reset() {
         playlist.clear()

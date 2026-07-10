@@ -60,6 +60,29 @@
     <string name="settings_about">关于</string>
     <string name="settings_about_summary">轻量本地音乐播放器</string>
 
+    <!-- 设置 · 外观 -->
+    <string name="section_appearance">外观</string>
+    <string name="section_playback">播放</string>
+    <string name="section_library">曲库</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_mode_summary">跟随系统 / 浅色 / 深色</string>
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="accent_color">个性强调色</string>
+    <string name="accent_color_summary">自定义播放页强调色</string>
+    <string name="accent_default">默认</string>
+
+    <!-- 设置 · 可视化样式 -->
+    <string name="visualizer_style">可视化样式</string>
+    <string name="vis_style_bars">条形</string>
+    <string name="vis_style_circle">圆形</string>
+    <string name="vis_style_wave">波形</string>
+
+    <!-- 设置 · 音乐目录 -->
+    <string name="music_directory">音乐目录</string>
+    <string name="music_directory_summary">限定仅扫描所选文件夹</string>
+
     <!-- 通知 -->
     <string name="channel_name">媒体播放</string>
     <string name="channel_description">PureMusic 后台播放控制</string>

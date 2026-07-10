@@ -15,6 +15,9 @@ object Prefs {
     private const val KEY_PLAY_MODE = "play_mode"
     private const val KEY_MUSIC_TREE_URI = "music_tree_uri"
     private const val KEY_MUSIC_DIR_NAME = "music_dir_name"
+    private const val KEY_THEME_MODE = "theme_mode"       // 0 跟随系统 / 1 浅色 / 2 深色
+    private const val KEY_VIS_STYLE = "vis_style"         // 0 条形 / 1 圆形 / 2 波形
+    private const val KEY_ACCENT = "accent_color"         // DIY 强调色；-1 表示使用默认
 
     private lateinit var sp: SharedPreferences
 
@@ -48,4 +51,19 @@ object Prefs {
     var musicDirName: String?
         get() = sp.getString(KEY_MUSIC_DIR_NAME, null)
         set(v) = sp.edit().putString(KEY_MUSIC_DIR_NAME, v).apply()
+
+    /** 明暗主题模式：0 跟随系统 / 1 浅色 / 2 深色 */
+    var themeMode: Int
+        get() = sp.getInt(KEY_THEME_MODE, 0)
+        set(v) = sp.edit().putInt(KEY_THEME_MODE, v).apply()
+
+    /** 可视化样式：0 条形 / 1 圆形 / 2 波形 */
+    var visualizerStyle: Int
+        get() = sp.getInt(KEY_VIS_STYLE, 0)
+        set(v) = sp.edit().putInt(KEY_VIS_STYLE, v).apply()
+
+    /** DIY 个性强调色；-1 表示使用默认品牌色 */
+    var accentColor: Int
+        get() = sp.getInt(KEY_ACCENT, -1)
+        set(v) = sp.edit().putInt(KEY_ACCENT, v).apply()
 }

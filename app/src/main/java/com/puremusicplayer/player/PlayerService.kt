@@ -239,20 +239,22 @@ class PlayerService : android.app.Service() {
                 captureSize = Visualizer.getCaptureSizeRange()[1]
                 setDataCaptureListener(
                     object : Visualizer.OnDataCaptureListener {
-                        override fun onWaveFormDataCapture(
-                            v: Visualizer?, waveform: ByteArray?, s: Int
-                        ) = Unit
+                override fun onWaveFormDataCapture(
+                    v: Visualizer?, waveform: ByteArray?, s: Int
+                ) {
+                    waveform?.let { PlayerManager.dispatchWave(it) }
+                }
 
-                        override fun onFftDataCapture(
-                            v: Visualizer?, fft: ByteArray?, s: Int
-                        ) {
-                            fft?.let { PlayerManager.dispatchFft(it) }
-                        }
-                    },
-                    Visualizer.getMaxCaptureRate(),
-                    false,
-                    true
-                )
+                override fun onFftDataCapture(
+                    v: Visualizer?, fft: ByteArray?, s: Int
+                ) {
+                    fft?.let { PlayerManager.dispatchFft(it) }
+                }
+            },
+            Visualizer.getMaxCaptureRate(),
+            true,
+            true
+        )
                 enabled = true
             }
         } catch (_: Exception) {

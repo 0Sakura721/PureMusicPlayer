@@ -51,7 +51,8 @@ class NowPlayingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Prefs.init(requireContext())
-        accentColor = ContextCompat.getColor(requireContext(), com.puremusicplayer.R.color.brand_primary)
+        val brand = ContextCompat.getColor(requireContext(), com.puremusicplayer.R.color.brand_primary)
+        accentColor = if (Prefs.accentColor >= 0) Prefs.accentColor else brand
 
         setupPager()
         applySettings()
@@ -84,6 +85,7 @@ class NowPlayingFragment : Fragment() {
         lyricsPage.lyricsView.setAnimate(Prefs.lyricsAnimEnabled)
         if (Prefs.visualizerEnabled) {
             cover.visualizerView.visibility = View.VISIBLE
+            cover.visualizerView.setStyle(Prefs.visualizerStyle)
             cover.visualizerView.register()
         } else {
             cover.visualizerView.unregister()
@@ -119,7 +121,10 @@ class NowPlayingFragment : Fragment() {
             cover.tvArtist.text = song.artist
             cover.ivArt.load(song.albumArtUri)
             showFileInfo(song)
-            if (Prefs.dynamicThemeEnabled) applyDynamicTheme(song.albumArtUri)
+            // DIY 个性强调色优先；其次按封面取动态色；最后回退品牌色
+            val diy = Prefs.accentColor
+            if (diy >= 0) setAccent(diy)
+            else if (Prefs.dynamicThemeEnabled) applyDynamicTheme(song.albumArtUri)
             else setAccent(accentColor)
             updateModeIcons()
             // 队列弹层打开时同步高亮当前曲目

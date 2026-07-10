@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -15,6 +16,7 @@ import com.puremusicplayer.R
 import com.puremusicplayer.databinding.ActivityMainBinding
 import com.puremusicplayer.player.PlayerControls
 import com.puremusicplayer.player.PlayerManager
+import com.puremusicplayer.util.Prefs
 import com.puremusicplayer.ui.LibraryFragment
 import com.puremusicplayer.ui.NowPlayingFragment
 import com.puremusicplayer.ui.SettingsFragment
@@ -33,6 +35,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Prefs.init(this)
+        applyThemeMode()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -58,6 +62,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 主页常驻迷你播放器：有歌曲时显示，点击展开播放页，含播放/下一首控制 */
+    /** 按偏好应用明暗主题模式（需在 setContentView 前调用） */
+    private fun applyThemeMode() {
+        val mode = when (Prefs.themeMode) {
+            1 -> AppCompatDelegate.MODE_NIGHT_NO
+            2 -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        }
+        AppCompatDelegate.setDefaultNightMode(mode)
+    }
+
     private fun setupMiniPlayer() {
         val mini = binding.miniPlayer
         mini.root.setOnClickListener { switchToNowPlaying() }
