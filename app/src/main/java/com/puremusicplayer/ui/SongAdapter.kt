@@ -12,7 +12,7 @@ import com.puremusicplayer.util.formatMs
 
 class SongAdapter(
     private val items: List<Song>,
-    private val currentIndex: Int = -1,
+    var currentIndex: Int = -1,
     private val onClick: (Int) -> Unit
 ) : RecyclerView.Adapter<SongAdapter.VH>() {
 
