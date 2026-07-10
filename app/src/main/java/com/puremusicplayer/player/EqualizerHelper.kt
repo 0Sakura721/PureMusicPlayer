@@ -49,6 +49,9 @@ object EqualizerHelper {
 
     fun isEnabled(): Boolean = enabled
 
+    /** 均衡器是否已成功初始化（音频会话有效） */
+    fun isInitialized(): Boolean = equalizer != null
+
     /** 应用预设 */
     fun applyPreset(preset: Preset) {
         val eq = equalizer ?: return
