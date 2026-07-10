@@ -201,18 +201,37 @@ class PlayerService : android.app.Service() {
     private fun loadLyrics(song: Song) {
         PlayerManager.lyrics.value = emptyList()
         PlayerManager.hasLyrics.value = false
-        val lrcUri = MusicRepository.findLrcUri(this, song.data) ?: return
-        Thread {
-            try {
-                contentResolver.openInputStream(lrcUri)?.use { stream ->
-                    val lines = LyricsParser.parse(stream)
+
+        // 优先外置 .lrc 文件
+        val lrcUri = MusicRepository.findLrcUri(this, song.data)
+        if (lrcUri != null) {
+            Thread {
+                try {
+                    contentResolver.openInputStream(lrcUri)?.use { stream ->
+                        val lines = LyricsParser.parse(stream)
+                        PlayerManager.lyrics.postValue(lines)
+                        PlayerManager.hasLyrics.postValue(lines.isNotEmpty())
+                    }
+                } catch (_: Exception) {
+                    // 歌词解析失败则静默忽略
+                }
+            }.start()
+            return
+        }
+
+        // 回退：读取 FLAC 等文件内嵌歌词
+        val embedded = MusicRepository.findEmbeddedLyrics(this, song)
+        if (embedded != null) {
+            Thread {
+                try {
+                    val lines = LyricsParser.parseText(embedded)
                     PlayerManager.lyrics.postValue(lines)
                     PlayerManager.hasLyrics.postValue(lines.isNotEmpty())
+                } catch (_: Exception) {
+                    // 内嵌歌词解析失败则静默忽略
                 }
-            } catch (_: Exception) {
-                // 歌词解析失败则静默忽略
-            }
-        }.start()
+            }.start()
+        }
     }
 
     // ---------- 可视化 ----------

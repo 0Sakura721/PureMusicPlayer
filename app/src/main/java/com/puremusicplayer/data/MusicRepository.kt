@@ -1,10 +1,15 @@
 package com.puremusicplayer.data
 
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import java.io.BufferedInputStream
+import java.io.DataInputStream
+import java.io.InputStream
+import java.nio.charset.StandardCharsets
 
 /**
  * 本地曲库数据源。
@@ -116,4 +121,82 @@ object MusicRepository {
         }
         return null
     }
+
+    /**
+     * 读取音频文件内嵌的歌词（目前支持 FLAC 的 Vorbis Comment 标签）。
+     * 仅流式读取文件头部的 metadata 块，不会加载整首文件，保持轻量。
+     * 命中 LYRICS / UNSYNCEDLYRICS 标签时返回其文本，否则返回 null。
+     */
+    fun findEmbeddedLyrics(context: Context, song: Song): String? {
+        val uri = ContentUris.withAppendedId(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, song.id
+        )
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { readFlacLyrics(it) }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun readFlacLyrics(stream: InputStream): String? {
+        val dis = DataInputStream(BufferedInputStream(stream))
+        val magic = ByteArray(4)
+        if (dis.read(magic) != 4 || !magic.contentEquals("fLaC".toByteArray())) return null
+
+        var lastBlock = false
+        while (!lastBlock) {
+            val header = dis.read()
+            if (header < 0) break
+            lastBlock = (header and 0x80) != 0
+            val type = header and 0x7F
+            val len = (dis.read() shl 16) or (dis.read() shl 8) or dis.read()
+            if (len < 0) break
+
+            val block = ByteArray(len)
+            var read = 0
+            while (read < len) {
+                val n = dis.read(block, read, len - read)
+                if (n < 0) break
+                read += n
+            }
+            if (read < len) break // 块被截断，停止解析
+
+            if (type == 4) { // VORBIS_COMMENT
+                val lyrics = parseVorbisLyrics(block)
+                if (lyrics != null) return lyrics
+            }
+        }
+        return null
+    }
+
+    private fun parseVorbisLyrics(block: ByteArray): String? {
+        if (block.size < 8) return null
+        var off = readLE32(block, 0) + 4 // 跳过 vendor 字符串
+        val count = readLE32(block, off)
+        off += 4
+
+        val collected = mutableListOf<String>()
+        repeat(count) {
+            if (off + 4 > block.size) return@repeat
+            val clen = readLE32(block, off)
+            off += 4
+            if (off + clen > block.size) return@repeat
+            val comment = String(block, off, clen, StandardCharsets.UTF_8)
+            off += clen
+            val eq = comment.indexOf('=')
+            if (eq > 0) {
+                val key = comment.substring(0, eq).uppercase()
+                if (key == "LYRICS" || key == "UNSYNCEDLYRICS") {
+                    collected.add(comment.substring(eq + 1))
+                }
+            }
+        }
+        return if (collected.isNotEmpty()) collected.joinToString("\n") else null
+    }
+
+    private fun readLE32(b: ByteArray, off: Int): Int =
+        (b[off].toInt() and 0xFF) or
+                ((b[off + 1].toInt() and 0xFF) shl 8) or
+                ((b[off + 2].toInt() and 0xFF) shl 16) or
+                ((b[off + 3].toInt() and 0xFF) shl 24)
 }
