@@ -70,13 +70,8 @@
 检出 → 安装 JDK 17 + Android SDK（API 36）→ Gradle 构建 `assembleDebug` 与 `assembleRelease` → 上传 APK 产物。
 
 获取 APK：进入仓库 **Actions → 最近一次 Build APK 运行 → 右侧 Artifacts `puremusic-apks`** 下载。
-- **`app-release-unsigned.apk`**（推荐）：已开启 R8 混淆 + 资源压缩，仅 **2.1 MB**，需自行签名后安装。不推荐安装 debug 版——未混淆压缩，AOT 编译后可达 20MB+。
-- `app-debug.apk`：已用默认 debug keystore 签名，可直接安装测试，但体积较大。
-
-**签名 release APK 一行命令**（需有 keystore）：
-```
-apksigner sign --ks your-key.jks --out puremusic-release.apk app-release-unsigned.apk
-```
+- **`app-release.apk`**（推荐）：R8 混淆 + 资源压缩，仅 **2.1 MB**，已签名，**可直接安装**。
+- `app-debug.apk`：默认 debug keystore 签名，可直接安装测试，但未经优化，安装后体积较大。
 
 ### 权限说明
 - 读取音频：Android 13+ 为 `READ_MEDIA_AUDIO`，低版本为 `READ_EXTERNAL_STORAGE`（应用内动态申请）

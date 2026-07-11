@@ -7,6 +7,19 @@ android {
     namespace = "com.puremusicplayer"
     compileSdk = 36
 
+    // 签名：用 Android SDK 自带的 debug keystore 签 release，实现「R8 优化 + 直接安装」
+    //   keystore: ~/.android/debug.keystore（首次运行 SDK 时自动生成）
+    //   alias:    androiddebugkey
+    //   password: android
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.puremusicplayer"
         minSdk = 21
@@ -35,6 +48,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -57,6 +71,27 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+}
+
+// 自动生成 debug keystore（若不存在），保证 release 签名不因缺 keystore 失败
+tasks.matching { it.name == "validateSigningRelease" }.configureEach {
+    doFirst {
+        val ks = file(System.getProperty("user.home") + "/.android/debug.keystore")
+        if (!ks.exists()) {
+            ks.parentFile.mkdirs()
+            exec {
+                commandLine(
+                    "keytool", "-genkey", "-v",
+                    "-keystore", ks.absolutePath,
+                    "-storepass", "android",
+                    "-alias", "androiddebugkey",
+                    "-keypass", "android",
+                    "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000",
+                    "-dname", "CN=Android Debug,O=Android,C=US"
+                )
+            }
+        }
     }
 }
 
