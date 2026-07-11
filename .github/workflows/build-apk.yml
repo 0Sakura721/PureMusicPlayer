@@ -38,12 +38,16 @@ jobs:
       # 确保 debug keystore 存在（release 也用同一把 key 签名，免去手动签名步骤）
       - name: Ensure debug keystore
         run: |
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v \
-              -keystore ~/.android/debug.keystore \
+          KS="$HOME/.android/debug.keystore"
+          if [ ! -f "$KS" ]; then
+            KT=$(which keytool 2>/dev/null || echo "${JAVA_HOME}/bin/keytool")
+            mkdir -p "$(dirname "$KS")"
+            "$KT" -genkeypair -v \
+              -keystore "$KS" \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -noprompt
           fi
 
       - name: Build APKs (debug + release)
