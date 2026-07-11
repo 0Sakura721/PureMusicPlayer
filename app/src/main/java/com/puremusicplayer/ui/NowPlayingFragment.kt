@@ -89,6 +89,7 @@ class NowPlayingFragment : Fragment() {
 
     private fun applySettings() {
         lyricsPage.lyricsView.setAnimate(Prefs.lyricsAnimEnabled)
+        lyricsPage.lyricsView.showTranslation = Prefs.showLyricsTranslation
         cover.btnSpeed.text = speedLabel(Prefs.playbackSpeed)
         updateSleepView(PlayerManager.sleepRemaining.value ?: 0)
         if (Prefs.visualizerEnabled) {

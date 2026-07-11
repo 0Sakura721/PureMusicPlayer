@@ -114,4 +114,31 @@ object Prefs {
     var sortModeOrdinal: Int
         get() = sp.getInt(KEY_SORT_MODE, 0)
         set(v) = sp.edit().putInt(KEY_SORT_MODE, v).apply()
+
+    // ───── 新增偏好 ─────
+
+    /** 退出时记住播放状态（播放队列、当前曲目、进度）；启动时自动恢复 */
+    var rememberPlayState: Boolean
+        get() = sp.getBoolean("remember_play_state", true)
+        set(v) = sp.edit().putBoolean("remember_play_state", v).apply()
+
+    /** 启动恢复后是否自动播放（仅在 rememberPlayState 为 true 时生效） */
+    var autoPlayOnLaunch: Boolean
+        get() = sp.getBoolean("auto_play_on_launch", false)
+        set(v) = sp.edit().putBoolean("auto_play_on_launch", v).apply()
+
+    /** 是否显示歌词翻译行 */
+    var showLyricsTranslation: Boolean
+        get() = sp.getBoolean("show_lyrics_translation", true)
+        set(v) = sp.edit().putBoolean("show_lyrics_translation", v).apply()
+
+    /** 通知栏常驻播放控制（暂停时也保留通知） */
+    var persistentNotification: Boolean
+        get() = sp.getBoolean("persistent_notification", false)
+        set(v) = sp.edit().putBoolean("persistent_notification", v).apply()
+
+    /** 自定义均衡器频段增益（逗号分隔的 dB 值，如 "-2,0,3,5,2"）；为空表示使用预设 */
+    var eqCustomBands: String?
+        get() = sp.getString("eq_custom_bands", null)
+        set(v) = sp.edit().putString("eq_custom_bands", v).apply()
 }

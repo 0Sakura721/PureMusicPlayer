@@ -216,7 +216,15 @@ class PlayerService : android.app.Service() {
         PlayerManager.isPlaying.value = false
         PlayerManager.saveQueue(this)
         updatePlaybackState()
-        updateNotification()
+        // 若非「通知栏常驻」，暂停后移除前台通知以减少干扰
+        if (!Prefs.persistentNotification) {
+            try {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                foregroundStarted = false
+            } catch (_: Exception) {}
+        } else {
+            updateNotification()
+        }
     }
 
     /**

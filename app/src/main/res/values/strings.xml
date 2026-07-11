@@ -120,6 +120,33 @@
     <string name="eq_preset">均衡器预设</string>
     <string name="eq_enable">开启 EQ</string>
     <string name="eq_disable">关闭 EQ</string>
+    <string name="eq_custom">自定义均衡器</string>
+    <string name="eq_custom_summary">手动调节各频段增益</string>
+    <string name="eq_band_hz">%d Hz</string>
+
+    <!-- 设置 · 记录状态 -->
+    <string name="section_general">通用</string>
+    <string name="settings_remember_play_state">退出时记忆播放状态</string>
+    <string name="settings_remember_play_state_summary">下次启动时恢复播放队列与进度</string>
+    <string name="settings_auto_play">启动后自动播放</string>
+    <string name="settings_auto_play_summary">恢复播放状态后自动开始播放</string>
+
+    <!-- 设置 · 通知 -->
+    <string name="section_notification">通知</string>
+    <string name="settings_persistent_notification">通知栏常驻播放器</string>
+    <string name="settings_persistent_notification_summary">暂停后仍保留媒体控制通知</string>
+
+    <!-- 设置 · 歌词 -->
+    <string name="settings_show_translation">显示歌词翻译</string>
+    <string name="settings_show_translation_summary">双语歌词的译文行独立显示</string>
+
+    <!-- 关于 -->
+    <string name="about_version">PureMusic %s</string>
+    <string name="about_description">轻量 · 本地优先 · 纯原生的 Android 音乐播放器。
+零广告、零跟踪、纯离线。
+所有音频解析与歌词均为 Kotlin 字节级实现。</string>
+    <string name="about_github">GitHub: 0Sakura721/PureMusicPlayer</string>
+    <string name="about_license">MIT License</string>
 
     <!-- 通知 -->
     <string name="channel_name">媒体播放</string>

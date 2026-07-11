@@ -7,11 +7,15 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.puremusicplayer.BuildConfig
 import com.puremusicplayer.R
 import com.puremusicplayer.databinding.FragmentSettingsBinding
 import com.puremusicplayer.player.PlayerControls
@@ -22,7 +26,6 @@ class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
-    /** 主题模式：跟随系统 / 浅色 / 深色 / 纯黑（AMOLED） */
     private val themeOptions = listOf(
         R.string.theme_follow_system to 0,
         R.string.theme_light to 1,
@@ -30,14 +33,12 @@ class SettingsFragment : Fragment() {
         R.string.theme_black to 3
     )
 
-    /** 可视化样式：条形 / 圆形 / 波形 */
     private val visOptions = listOf(
         R.string.vis_style_bars to 0,
         R.string.vis_style_circle to 1,
         R.string.vis_style_wave to 2
     )
 
-    /** DIY 个性强调色（含「默认」）；-1 表示使用品牌默认色 */
     private fun accentOptions(): List<Pair<String, Int>> = listOf(
         getString(R.string.accent_default) to -1,
         "经典紫" to Color.parseColor("#6C5CE7"),
@@ -48,20 +49,21 @@ class SettingsFragment : Fragment() {
         "烈焰红" to Color.parseColor("#D63031")
     )
 
-    /** 音乐目录选择器（SAF 文档树） */
     private val pickDirectory = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri == null) return@registerForActivityResult
-        // 持久化权限，应用重启后仍能访问该目录
-        requireContext().contentResolver.takePersistableUriPermission(
-            uri,
-            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
-        )
-        val name = DocumentFile.fromTreeUri(requireContext(), uri)?.name ?: uri.lastPathSegment
-        Prefs.musicTreeUri = uri.toString()
-        Prefs.musicDirName = name
-        updateDirChip()
+        val ctx = context ?: return@registerForActivityResult
+        try {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+            )
+            val name = DocumentFile.fromTreeUri(ctx, uri)?.name ?: uri.lastPathSegment ?: "Music"
+            Prefs.musicTreeUri = uri.toString()
+            Prefs.musicDirName = name
+            updateDirChip()
+        } catch (_: Exception) { }
     }
 
     override fun onCreateView(
@@ -75,53 +77,57 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         Prefs.init(requireContext())
 
-        // 开关：复用既有偏好
+        // ── 现有开关 ──
         binding.switchVisualizer.isChecked = Prefs.visualizerEnabled
         binding.switchLyrics.isChecked = Prefs.lyricsAnimEnabled
         binding.switchTheme.isChecked = Prefs.dynamicThemeEnabled
         binding.switchUnplug.isChecked = Prefs.pauseOnUnplug
+        binding.switchEq.isChecked = Prefs.equalizerEnabled
+        // 新增
+        binding.switchShowTranslation.isChecked = Prefs.showLyricsTranslation
+        binding.switchRememberState.isChecked = Prefs.rememberPlayState
+        binding.switchAutoPlay.isChecked = Prefs.autoPlayOnLaunch
+        binding.switchPersistentNotification.isChecked = Prefs.persistentNotification
 
         binding.switchVisualizer.setOnCheckedChangeListener { _, v ->
-            Prefs.visualizerEnabled = v
-            updatePreview()
-        }
+            Prefs.visualizerEnabled = v; updatePreview() }
         binding.switchLyrics.setOnCheckedChangeListener { _, v -> Prefs.lyricsAnimEnabled = v }
         binding.switchTheme.setOnCheckedChangeListener { _, v -> Prefs.dynamicThemeEnabled = v }
         binding.switchUnplug.setOnCheckedChangeListener { _, v -> Prefs.pauseOnUnplug = v }
+        binding.switchEq.setOnCheckedChangeListener { _, v ->
+            Prefs.equalizerEnabled = v; PlayerControls.toggleEq(requireContext(), v); refreshEqSummary() }
+        binding.switchShowTranslation.setOnCheckedChangeListener { _, v -> Prefs.showLyricsTranslation = v }
+        binding.switchRememberState.setOnCheckedChangeListener { _, v -> Prefs.rememberPlayState = v }
+        binding.switchAutoPlay.setOnCheckedChangeListener { _, v -> Prefs.autoPlayOnLaunch = v }
+        binding.switchPersistentNotification.setOnCheckedChangeListener { _, v ->
+            Prefs.persistentNotification = v }
 
         // 均衡器
-        binding.switchEq.isChecked = Prefs.equalizerEnabled
-        binding.switchEq.setOnCheckedChangeListener { _, v ->
-            Prefs.equalizerEnabled = v
-            PlayerControls.toggleEq(requireContext(), v)
-        }
         binding.rowEqualizer.setOnClickListener { showEqPresetDialog() }
+        binding.btnEqCustom.setOnClickListener { showEqCustomDialog() }
         refreshEqSummary()
 
-        // 外观：主题模式 / 个性强调色
+        // 外观
         binding.rowTheme.setOnClickListener { showThemeDialog() }
         binding.rowAccent.setOnClickListener { showAccentDialog() }
-
-        // 播放：可视化样式
         binding.rowVisStyle.setOnClickListener { showVisStyleDialog() }
 
-        // 曲库：目录选择
+        // 曲库
         binding.btnPickDir.setOnClickListener { pickDirectory.launch(null) }
         binding.dirClear.setOnClickListener {
-            Prefs.musicTreeUri = null
-            Prefs.musicDirName = null
-            updateDirChip()
-        }
+            Prefs.musicTreeUri = null; Prefs.musicDirName = null; updateDirChip() }
 
-        // 初始化摘要与色块
+        // 初始化
         refreshThemeSummary()
         refreshVisStyleSummary()
         refreshSwatch()
         updateDirChip()
         setupPreview()
+        // 关于：版本号
+        binding.tvAboutVersion.text = getString(R.string.about_version, BuildConfig.VERSION_NAME)
     }
 
-    // ---------- 可视化实时预览（让设置项即时可见，避免“空壳”） ----------
+    // ── 可视化预览 ──
     private fun previewAccent(): Int =
         if (Prefs.accentColor >= 0) Prefs.accentColor
         else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.brand_primary)
@@ -150,7 +156,7 @@ class SettingsFragment : Fragment() {
         _binding = null
     }
 
-    // ---------- 主题模式 ----------
+    // ── 主题模式 ──
     private fun showThemeDialog() {
         val items = themeOptions.map { getString(it.first) }.toTypedArray()
         val current = Prefs.themeMode.coerceIn(0, 3)
@@ -158,57 +164,48 @@ class SettingsFragment : Fragment() {
             .setTitle(R.string.theme_mode)
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
                 Prefs.themeMode = themeOptions[which].second
-                refreshThemeSummary()
-                applyThemeMode()
-                dlg.dismiss()
-                // 重新创建 Activity 让明暗主题立即生效
+                refreshThemeSummary(); applyThemeMode()
+                (dlg as? android.app.Dialog)?.dismiss()
                 requireActivity().recreate()
             })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun applyThemeMode() {
         val mode = when (Prefs.themeMode) {
             1 -> AppCompatDelegate.MODE_NIGHT_NO
-            2, 3 -> AppCompatDelegate.MODE_NIGHT_YES   // 深色与纯黑(AMOLED)均走夜间模式
+            2, 3 -> AppCompatDelegate.MODE_NIGHT_YES
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
         AppCompatDelegate.setDefaultNightMode(mode)
     }
 
     private fun refreshThemeSummary() {
-        val idx = Prefs.themeMode.coerceIn(0, 3)
-        binding.tvThemeSummary.text = getString(themeOptions[idx].first)
+        binding.tvThemeSummary.text = getString(themeOptions[Prefs.themeMode.coerceIn(0, 3)].first)
     }
 
-    // ---------- DIY 个性强调色 ----------
+    // ── DIY 强调色 ──
     private fun showAccentDialog() {
         val options = accentOptions()
         val items = options.map { it.first }.toTypedArray()
-        val current = options.indexOfFirst { it.second == Prefs.accentColor }
-            .let { if (it < 0) 0 else it }
+        val current = options.indexOfFirst { it.second == Prefs.accentColor }.let { if (it < 0) 0 else it }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.accent_color)
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
                 Prefs.accentColor = options[which].second
-                refreshSwatch()
-                updatePreview()
-                dlg.dismiss()
+                refreshSwatch(); updatePreview()
+                (dlg as? android.app.Dialog)?.dismiss()
             })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun refreshSwatch() {
         val c = if (Prefs.accentColor >= 0) Prefs.accentColor
-        else requireContext().let {
-            androidx.core.content.ContextCompat.getColor(it, R.color.brand_primary)
-        }
+        else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.brand_primary)
         binding.swatch.background.setTint(c)
     }
 
-    // ---------- 可视化样式 ----------
+    // ── 可视化样式 ──
     private fun showVisStyleDialog() {
         val items = visOptions.map { getString(it.first) }.toTypedArray()
         val current = Prefs.visualizerStyle.coerceIn(0, 2)
@@ -216,12 +213,10 @@ class SettingsFragment : Fragment() {
             .setTitle(R.string.visualizer_style)
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
                 Prefs.visualizerStyle = visOptions[which].second
-                refreshVisStyleSummary()
-                updatePreview()
-                dlg.dismiss()
+                refreshVisStyleSummary(); updatePreview()
+                (dlg as? android.app.Dialog)?.dismiss()
             })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun refreshVisStyleSummary() {
@@ -229,7 +224,7 @@ class SettingsFragment : Fragment() {
         binding.tvVisStyleSummary.text = getString(visOptions[idx].first)
     }
 
-    // ---------- 均衡器 ----------
+    // ── 均衡器 ──
     private fun showEqPresetDialog() {
         val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
         val items = presets.map { it.label }.toTypedArray()
@@ -237,22 +232,74 @@ class SettingsFragment : Fragment() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.eq_preset)
             .setSingleChoiceItems(items, current, DialogInterface.OnClickListener { dlg, which ->
-                Prefs.equalizerPreset = which
+                Prefs.equalizerPreset = which; Prefs.eqCustomBands = null
                 PlayerControls.setEqPreset(requireContext(), which)
                 refreshEqSummary()
-                dlg.dismiss()
+                (dlg as? android.app.Dialog)?.dismiss()
             })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .setNegativeButton(android.R.string.cancel, null).show()
+    }
+
+    /** 自定义 EQ：为每个频段显示一条 SeekBar（-12..+12 dB） */
+    @Suppress("UNCHECKED_CAST")
+    private fun showEqCustomDialog() {
+        val eq: android.media.audiofx.Equalizer =
+            com.puremusicplayer.player.EqualizerHelper.getEq() ?: return
+        val N: Int = eq.numberOfBands.toInt()
+        if (N <= 0) return
+
+        val cont = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(32, 24, 32, 0)
+        }
+        val bars = arrayOfNulls<SeekBar>(N)
+        for (i in 0 until N) {
+            val raw: Int = eq.getBandLevel(i.toShort()).toInt()
+            bars[i] = SeekBar(requireContext()).apply {
+                max = 24; progress = (raw / 100 + 12).coerceIn(0, 24)
+            }
+        }
+        for (i in 0 until N) {
+            val hz: Int = eq.getCenterFreq(i.toShort()).toInt() / 1000
+            val db: Double = eq.getBandLevel(i.toShort()).toInt() / 100.0
+            val tv = TextView(requireContext()).apply {
+                text = "${hz} Hz  ${"%.1f".format(db)} dB"; textSize = 12f
+            }
+            cont.addView(tv); cont.addView(bars[i]!!)
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.eq_custom)
+            .setView(cont)
+            .setPositiveButton("应用") { dlg, _ ->
+                for (i in 0 until N) {
+                    val v = ((bars[i]!!.progress - 12) * 100).toShort()
+                    eq.setBandLevel(i.toShort(), v)
+                }
+                Prefs.eqCustomBands = (0 until N).joinToString(",") {
+                    ((bars[it]!!.progress - 12) * 100).toString() }
+                Prefs.equalizerEnabled = true
+                eq.enabled = true
+                binding.switchEq.isChecked = true
+                refreshEqSummary()
+                dlg.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun refreshEqSummary() {
-        val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
-        val idx = Prefs.equalizerPreset.coerceIn(0, presets.size - 1)
-        binding.tvEqSummary.text = if (Prefs.equalizerEnabled) presets[idx].label else getString(R.string.equalizer_summary)
+        val enabled = Prefs.equalizerEnabled
+        val custom = Prefs.eqCustomBands != null
+        binding.tvEqSummary.text = when {
+            !enabled -> getString(R.string.equalizer_summary)
+            custom -> getString(R.string.eq_custom)
+            else -> {
+                val presets = com.puremusicplayer.player.EqualizerHelper.Preset.values()
+                presets[Prefs.equalizerPreset.coerceIn(0, presets.size - 1)].label
+            }
+        }
     }
 
-    // ---------- 音乐目录 ----------
+    // ── 音乐目录 ──
     private fun updateDirChip() {
         val name = Prefs.musicDirName
         if (name.isNullOrEmpty()) {

@@ -18,6 +18,7 @@ import com.puremusicplayer.databinding.ActivityMainBinding
 import com.puremusicplayer.player.PlayerControls
 import com.puremusicplayer.player.PlayerManager
 import com.puremusicplayer.util.Prefs
+import com.puremusicplayer.util.QueueStorage
 import com.puremusicplayer.ui.LibraryFragment
 import com.puremusicplayer.ui.NowPlayingFragment
 import com.puremusicplayer.ui.SettingsFragment
@@ -38,7 +39,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
         PlayerManager.syncFavorites()
-        PlayerManager.restoreQueue(this)
+        // 按偏好决定是否恢复上次播放状态
+        val restored = if (Prefs.rememberPlayState) {
+            PlayerManager.restoreQueue(this)
+        } else {
+            QueueStorage.clear(this); false
+        }
         applyThemeMode()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -62,6 +68,13 @@ class MainActivity : AppCompatActivity() {
         }
         updateBackCallback()
         setupMiniPlayer()
+
+        // 启动后自动播放（仅在成功恢复播放状态时）
+        if (restored && Prefs.autoPlayOnLaunch && PlayerManager.playlist.isNotEmpty()) {
+            PlayerManager.currentSong.value?.let {
+                PlayerControls.play(this)
+            }
+        }
     }
 
     /** 主页常驻迷你播放器：有歌曲时显示，点击展开播放页，含播放/下一首控制 */

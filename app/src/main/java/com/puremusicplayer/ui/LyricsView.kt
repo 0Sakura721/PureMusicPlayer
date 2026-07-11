@@ -31,6 +31,8 @@ class LyricsView @JvmOverloads constructor(
     private var currentOffset = 0f
     private var targetOffset = 0f
     private var animate = true
+    /** 是否绘制译文行（由设置控制） */
+    var showTranslation = true
 
     /** 每行展开后的绘制行（含译文行） */
     private data class Row(val text: String, val translation: Boolean)
@@ -107,8 +109,10 @@ class LyricsView @JvmOverloads constructor(
                 rowList.add(Row(r, false))
                 lof.add(i)
             }
-            if (!ln.translation.isNullOrEmpty()) {
-                for (r in wrap(ln.translation, maxW, transPaint)) {
+            if (!showTranslation || ln.translation.isNullOrEmpty()) {
+                // 跳过译文
+            } else {
+                for (r in wrap(ln.translation!!, maxW, transPaint)) {
                     rowList.add(Row(r, true))
                     lof.add(i)
                 }
