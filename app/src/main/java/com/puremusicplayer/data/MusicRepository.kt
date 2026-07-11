@@ -151,11 +151,26 @@ object MusicRepository {
         }
     }
 
-    /** 把内嵌封面写入应用私有缓存，返回文件 Uri（避免重复解码，跨刷新复用） */
+    /** 把内嵌封面写入应用私有缓存，返回文件 Uri。
+     *  总量上限 8MB，超出时删最旧文件；应用启动时也会清理 48h 前的缓存。 */
     private fun saveArtToCache(context: Context, keyUri: Uri, bytes: ByteArray): Uri? {
         return try {
             val dir = File(context.cacheDir, "art")
             if (!dir.exists()) dir.mkdirs()
+            // 保持缓存总量 ≤ 8 MB：超出时按时间删最旧
+            val maxBytes = 8L * 1024 * 1024
+            val files = dir.listFiles()
+            if (files != null) {
+                files.sortBy { it.lastModified() }
+                var total = 0L
+                for (f in files) total += f.length()
+                var idx = 0
+                while (idx < files.size && total + bytes.size > maxBytes) {
+                    total -= files[idx].length()
+                    files[idx].delete()
+                    idx++
+                }
+            }
             val h = keyUri.toString().hashCode()
             val name = "art_${if (h < 0) -h else h}.jpg"
             val file = File(dir, name)

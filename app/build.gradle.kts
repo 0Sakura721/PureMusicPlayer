@@ -22,6 +22,15 @@ android {
         }
     }
 
+    packaging {
+        resources {
+            // OkHttp 的公网域名后缀表：纯本地播放器不需要，体积 41KB
+            excludes += "okhttp3/internal/publicsuffix/publicsuffixes.gz"
+            // 未使用依赖的 LICENSE/META-INF 文件
+            excludes += "META-INF/androidx/constraintlayout/constraintlayout-core/LICENSE.txt"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -60,7 +69,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.0")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     // 媒体会话（锁屏/通知/媒体键）直接使用 Android 框架原生 API
